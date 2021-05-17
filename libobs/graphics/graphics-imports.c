@@ -225,6 +225,7 @@ bool load_graphics_imports(struct gs_exports *exports, void *module,
 	GRAPHICS_IMPORT_OPTIONAL(device_unregister_loss_callbacks);
 #elif __linux__
 	GRAPHICS_IMPORT(device_texture_create_from_dmabuf);
+	GRAPHICS_IMPORT(device_query_dmabuf_modifiers);
 #endif
 
 	return success;
