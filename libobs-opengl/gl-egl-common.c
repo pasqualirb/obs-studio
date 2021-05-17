@@ -59,6 +59,14 @@ typedef void(APIENTRYP PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)(
 	GLenum target, GLeglImageOES image);
 static PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 
+typedef EGLBoolean (APIENTRYP PFNEGLQUERYDMABUFFORMATSEXTPROC)(
+	EGLDisplay dpy, EGLint max_formats, EGLint *formats, EGLint *num_formats);
+static PFNEGLQUERYDMABUFFORMATSEXTPROC glEGLQueryDmaBufFormats;
+typedef EGLBoolean (APIENTRYP PFNEGLQUERYDMABUFMODIFIERSEXTPROC)(
+	EGLDisplay dpy, EGLint format, EGLint max_modifiers, EGLuint64KHR *modifiers,
+	EGLBoolean *external_only, EGLint *num_modifiers);
+static PFNEGLQUERYDMABUFMODIFIERSEXTPROC glEGLQueryDmaBufModifiers;
+
 static bool find_gl_extension(const char *extension)
 {
 	GLint n, i;
@@ -90,6 +98,56 @@ static bool init_egl_image_target_texture_2d_ext(void)
 	}
 
 	if (!glEGLImageTargetTexture2DOES)
+		return false;
+
+	return true;
+}
+
+static bool init_egl_query_dmabuf_formats_ext(void)
+{
+	static bool initialized = false;
+
+	if (!initialized) {
+		initialized = true;
+
+		if (!find_gl_extension("GL_OES_EGL_image")) {
+			blog(LOG_ERROR, "No GL_OES_EGL_image");
+			return false;
+		}
+
+		glEGLQueryDmaBufFormats =
+			(PFNEGLQUERYDMABUFFORMATSEXTPROC)eglGetProcAddress(
+				"eglQueryDmaBufFormatsEXT");
+		if (!glEGLQueryDmaBufFormats)
+			blog(LOG_ERROR, "No eglQueryDmaBufFormatsEXT");
+	}
+
+	if (!glEGLQueryDmaBufFormats)
+		return false;
+
+	return true;
+}
+
+static bool init_egl_query_dmabuf_modifiers_ext(void)
+{
+	static bool initialized = false;
+
+	if (!initialized) {
+		initialized = true;
+
+		if (!find_gl_extension("GL_OES_EGL_image")) {
+			blog(LOG_ERROR, "No GL_OES_EGL_image");
+			return false;
+		}
+
+		glEGLQueryDmaBufModifiers =
+			(PFNEGLQUERYDMABUFMODIFIERSEXTPROC)eglGetProcAddress(
+				"eglQueryDmaBufModifiersEXT");
+		if (!glEGLQueryDmaBufModifiers)
+			blog(LOG_ERROR, "No eglQueryDmaBufFormatsEXT");
+	}
+
+	if (!glEGLQueryDmaBufModifiers)
 		return false;
 
 	return true;
@@ -222,6 +280,114 @@ gl_egl_create_dmabuf_image(EGLDisplay egl_display, unsigned int width,
 	eglDestroyImage(egl_display, egl_image);
 
 	return texture;
+}
+
+int
+gl_egl_query_dmabuf_formats(EGLDisplay egl_display, uint32_t **formats)
+{
+	EGLint max_formats = 0;
+	EGLint *format_list = NULL;
+
+	if (!init_egl_query_dmabuf_formats_ext())
+		blog(LOG_ERROR, "Unable to load eglQueryDmaBufFormatsEXT");
+		return 0;
+
+	if (!glEGLQueryDmaBufFormats(egl_display, 0, NULL, &max_formats)) {
+		blog(LOG_ERROR, "Cannot query the number of formats: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		return 0;
+	}
+
+	format_list = calloc(max_formats, sizeof(EGLint));
+	if (!format_list) {
+		blog(LOG_ERROR, "Unable to allocate memory");
+		return 0;
+	}
+
+	if (!glEGLQueryDmaBufFormats(egl_display, max_formats, format_list, &max_formats)) {
+		blog(LOG_ERROR, "Cannot query a list of modifiers: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		free(format_list);
+		return 0;
+	}
+
+	*formats = (uint32_t*)format_list;
+	return max_formats;
+}
+
+int
+gl_egl_query_dmabuf_modifiers(EGLDisplay egl_display, uint32_t drm_format,
+			      uint64_t **modifiers)
+{
+	EGLint max_modifiers = 0;
+	EGLuint64KHR *modifier_list = NULL;
+	EGLBoolean *external_only = NULL;
+
+	EGLint num_formats;
+	uint32_t *formats;
+	EGLBoolean format_available = false;
+
+	num_formats = gl_egl_query_dmabuf_formats(egl_display, &formats);
+	if (num_formats == 0) {
+		blog(LOG_ERROR, "No formats supported by dmabuf");
+		goto error_format;
+	}
+
+	for (int i = 0; i < num_formats; i++) {
+		if (drm_format == formats[i]) {
+			format_available = true;
+			break;
+		}
+	}
+	free(formats);
+
+	if (!format_available) {
+		blog(LOG_ERROR, "Format %u not supported for modifiers", drm_format);
+		goto error_format;
+	}
+
+	if (!init_egl_query_dmabuf_modifiers_ext()) {
+		blog(LOG_ERROR, "Unable to load eglQueryDmaBufModifiersEXT");
+		goto error_extensions;
+	}
+
+	if (!glEGLQueryDmaBufModifiers(egl_display, drm_format, 0, NULL, NULL, &max_modifiers)) {
+		blog(LOG_ERROR, "Cannot query the number of modifiers: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		goto error_modnum;
+	}
+
+	modifier_list = calloc(max_modifiers + 1, sizeof(EGLuint64KHR)); // We want to add DRM_FORMAT_MOD_INVALID manually
+	external_only = calloc(max_modifiers, sizeof(EGLBoolean));
+	if (!modifier_list || !external_only) {
+		blog(LOG_ERROR, "Unable to allocate memory");
+		goto error_alloc;
+	}
+
+	if (!glEGLQueryDmaBufModifiers(egl_display, drm_format, max_modifiers, modifier_list, external_only, &max_modifiers)) {
+		blog(LOG_ERROR, "Cannot query a list of modifiers: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		goto error_modlist;
+	}
+
+	modifier_list[max_modifiers] = DRM_FORMAT_MOD_INVALID;
+	free(external_only);
+	*modifiers = modifier_list;
+	return max_modifiers++;
+
+error_modlist:
+error_alloc:
+	free(external_only);
+	free(modifier_list);
+error_modnum:
+error_extensions:
+	max_modifiers = 1;
+	*modifiers = (uint64_t*)calloc(max_modifiers, sizeof(uint64_t));
+	*modifiers[0] = DRM_FORMAT_MOD_INVALID;
+	return max_modifiers;
+
+error_format:
+	return 0;
 }
 
 const char *gl_egl_error_to_string(EGLint error_number)
