@@ -46,6 +46,15 @@ typedef unsigned long drm_handle_t;
 
 #endif
 
+#define DRM_FORMAT_RESERVED	      ((1ULL << 56) - 1)
+
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
+
+#define fourcc_mod_code(vendor, val) \
+	((((__u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | ((val) & 0x00ffffffffffffffULL))
+
+#define DRM_FORMAT_MOD_INVALID	fourcc_mod_code(NONE, DRM_FORMAT_RESERVED)
+
 typedef void(APIENTRYP PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)(
 	GLenum target, GLeglImageOES image);
 static PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
@@ -118,7 +127,7 @@ create_dmabuf_egl_image(EGLDisplay egl_display, unsigned int width,
 		attribs[atti++] = offsets[0];
 		attribs[atti++] = EGL_DMA_BUF_PLANE0_PITCH_EXT;
 		attribs[atti++] = strides[0];
-		if (modifiers) {
+		if (modifiers && modifiers[0] != DRM_FORMAT_MOD_INVALID) {
 			attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
 			attribs[atti++] = modifiers[0] & 0xFFFFFFFF;
 			attribs[atti++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
@@ -133,7 +142,7 @@ create_dmabuf_egl_image(EGLDisplay egl_display, unsigned int width,
 		attribs[atti++] = offsets[1];
 		attribs[atti++] = EGL_DMA_BUF_PLANE1_PITCH_EXT;
 		attribs[atti++] = strides[1];
-		if (modifiers) {
+		if (modifiers && modifiers[1] != DRM_FORMAT_MOD_INVALID) {
 			attribs[atti++] = EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT;
 			attribs[atti++] = modifiers[1] & 0xFFFFFFFF;
 			attribs[atti++] = EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT;
@@ -148,7 +157,7 @@ create_dmabuf_egl_image(EGLDisplay egl_display, unsigned int width,
 		attribs[atti++] = offsets[2];
 		attribs[atti++] = EGL_DMA_BUF_PLANE2_PITCH_EXT;
 		attribs[atti++] = strides[2];
-		if (modifiers) {
+		if (modifiers && modifiers[2] != DRM_FORMAT_MOD_INVALID) {
 			attribs[atti++] = EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT;
 			attribs[atti++] = modifiers[2] & 0xFFFFFFFF;
 			attribs[atti++] = EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT;
@@ -163,7 +172,7 @@ create_dmabuf_egl_image(EGLDisplay egl_display, unsigned int width,
 		attribs[atti++] = offsets[3];
 		attribs[atti++] = EGL_DMA_BUF_PLANE3_PITCH_EXT;
 		attribs[atti++] = strides[3];
-		if (modifiers) {
+		if (modifiers && modifiers[3] != DRM_FORMAT_MOD_INVALID) {
 			attribs[atti++] = EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT;
 			attribs[atti++] = modifiers[3] & 0xFFFFFFFF;
 			attribs[atti++] = EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT;
