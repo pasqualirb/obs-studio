@@ -342,6 +342,62 @@ static void swap_texture_red_blue(gs_texture_t *texture)
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+static inline struct spa_pod *build_format(struct spa_pod_builder *b,
+					   struct obs_video_info *ovi,
+					   uint32_t format,
+					   uint64_t *modifiers,
+					   size_t modifier_count)
+{
+	uint32_t i, c;
+	struct spa_pod_frame f[2];
+
+	fprintf(stderr, "modifiers: (%lu)\n", modifier_count);
+	for (i = 0; i < modifier_count; i++) {
+		fprintf(stderr, "- %ld\n", modifiers[i]);
+	}
+
+	/* make an object of type SPA_TYPE_OBJECT_Format and id SPA_PARAM_EnumFormat.
+	 * The object type is important because it defines the properties that are
+	 * acceptable. The id gives more context about what the object is meant to
+	 * contain. In this case we enumerate supported formats. */
+	spa_pod_builder_push_object(b, &f[0], SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat);
+	/* add media type and media subtype properties */
+	spa_pod_builder_prop(b, SPA_FORMAT_mediaType, 0);
+	spa_pod_builder_id(b, SPA_MEDIA_TYPE_video);
+	spa_pod_builder_prop(b, SPA_FORMAT_mediaSubtype, 0);
+	spa_pod_builder_id(b, SPA_MEDIA_SUBTYPE_raw);
+
+	/* build an enumeration of formats */
+	spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_format, 0);
+	spa_pod_builder_id(b, format);
+
+	if (modifier_count > 0) {
+		/* build an enumeration of modifiers */
+		spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_modifier, 0);
+		spa_pod_builder_push_choice(b, &f[1], SPA_CHOICE_Enum, 0);
+		/* modifiers from  an array */
+		for (i = 0, c = 0; i < modifier_count; i++) {
+			uint64_t modifier = modifiers[i];
+			spa_pod_builder_long(b, modifier);
+			if (c++ == 0)
+				spa_pod_builder_long(b, modifier);
+		}
+		spa_pod_builder_pop(b, &f[1]);
+	}
+	/* add size and framerate ranges */
+	spa_pod_builder_add(b,
+		SPA_FORMAT_VIDEO_size,      SPA_POD_CHOICE_RANGE_Rectangle(
+							&SPA_RECTANGLE(320, 240), // Arbitrary
+							&SPA_RECTANGLE(1,1),
+							&SPA_RECTANGLE(8192,4320)),
+		SPA_FORMAT_VIDEO_framerate, SPA_POD_CHOICE_RANGE_Fraction(
+							&SPA_FRACTION(ovi->fps_num,ovi->fps_den),
+							&SPA_FRACTION(0,1),
+							&SPA_FRACTION(360,1)),
+		0);
+	return spa_pod_builder_pop(b, &f[0]);
+}
+
 /* ------------------------------------------------- */
 
 static void on_process_cb(void *user_data)
@@ -617,9 +673,12 @@ static const struct pw_core_events core_events = {
 static void play_pipewire_stream(obs_pipewire_data *obs_pw)
 {
 	struct spa_pod_builder pod_builder;
-	const struct spa_pod *params[1];
-	uint8_t params_buffer[1024];
+	const struct spa_pod **params;
+	uint32_t n_formats, n_params;
+	uint8_t params_buffer[2048];
 	struct obs_video_info ovi;
+	int n_modifiers;
+	uint64_t *modifiers;
 
 	obs_pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
 	obs_pw->context = pw_context_new(
@@ -660,32 +719,50 @@ static void play_pipewire_stream(obs_pipewire_data *obs_pw)
 		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
 
 	obs_get_video_info(&ovi);
-	params[0] = spa_pod_builder_add_object(
-		&pod_builder, SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
-		SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video),
-		SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
-		SPA_FORMAT_VIDEO_format,
-		SPA_POD_CHOICE_ENUM_Id(
-			4, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
-			SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx),
-		SPA_FORMAT_VIDEO_size,
-		SPA_POD_CHOICE_RANGE_Rectangle(
-			&SPA_RECTANGLE(320, 240), // Arbitrary
-			&SPA_RECTANGLE(1, 1), &SPA_RECTANGLE(8192, 4320)),
-		SPA_FORMAT_VIDEO_framerate,
-		SPA_POD_CHOICE_RANGE_Fraction(
-			&SPA_FRACTION(ovi.fps_num, ovi.fps_den),
-			&SPA_FRACTION(0, 1), &SPA_FRACTION(360, 1)));
+	uint32_t formats[] = {
+		SPA_VIDEO_FORMAT_BGRA,
+		SPA_VIDEO_FORMAT_RGBA,
+		SPA_VIDEO_FORMAT_BGRx,
+		SPA_VIDEO_FORMAT_RGBx,
+	};
+	uint32_t drm_format;
+
+	n_formats = sizeof(formats)/sizeof(formats[0]);
+	n_params = 2*n_formats;
+
+	params = calloc(n_params, sizeof(struct spa_param*));
+
+	obs_enter_graphics();
+
+	for (uint32_t i = 0; i < n_formats; i++) {
+		if (!spa_pixel_format_to_drm_format(formats[i], &drm_format)) {
+			n_params--;
+			continue;
+		}
+		n_modifiers = gs_query_dmabuf_modifiers(drm_format, &modifiers);
+		if (n_modifiers == 0) {
+			n_params--;
+			continue;
+		}
+		params[i] = build_format(&pod_builder, &ovi, formats[i], modifiers, n_modifiers);
+		free(modifiers);
+	}
+	for (uint32_t i = 0; i < n_formats; i++) {
+		params[n_params - n_formats + i] = build_format(&pod_builder, &ovi, formats[i], NULL, 0);
+	}
+	obs_leave_graphics();
+
 	obs_pw->video_info = ovi;
 
 	pw_stream_connect(
 		obs_pw->stream, PW_DIRECTION_INPUT, obs_pw->pipewire_node,
 		PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS, params,
-		1);
+		n_params);
 
 	blog(LOG_INFO, "[pipewire] playing stream…");
 
 	pw_thread_loop_unlock(obs_pw->thread_loop);
+	free(params);
 }
 
 /* ------------------------------------------------- */
