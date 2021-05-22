@@ -745,12 +745,19 @@ static void play_pipewire_stream(obs_pipewire_data *obs_pw)
 			continue;
 		}
 		params[i] = build_format(&pod_builder, &ovi, formats[i], modifiers, n_modifiers);
+		spa_debug_format(2, NULL, params[i]);
 		free(modifiers);
 	}
 	for (uint32_t i = 0; i < n_formats; i++) {
 		params[n_params - n_formats + i] = build_format(&pod_builder, &ovi, formats[i], NULL, 0);
+		spa_debug_format(2, NULL, params[n_params - n_formats + i]);
 	}
 	obs_leave_graphics();
+
+	for (uint32_t i = 0; i < n_params; i++) {
+		blog(LOG_INFO, "[pipewire] enumparam %d", i);
+		spa_debug_format(2, NULL, params[i]);
+	}
 
 	obs_pw->video_info = ovi;
 
