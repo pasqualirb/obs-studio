@@ -373,7 +373,7 @@ static inline struct spa_pod *build_format(struct spa_pod_builder *b,
 
 	if (modifier_count > 0) {
 		/* build an enumeration of modifiers */
-		spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_modifier, 0);
+		spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_modifier, (1u<<3));
 		spa_pod_builder_push_choice(b, &f[1], SPA_CHOICE_Enum, 0);
 		/* modifiers from  an array */
 		for (i = 0, c = 0; i < modifier_count; i++) {
