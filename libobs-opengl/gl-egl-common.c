@@ -372,9 +372,10 @@ gl_egl_query_dmabuf_modifiers(EGLDisplay egl_display, uint32_t drm_format,
 	}
 
 	modifier_list[max_modifiers] = DRM_FORMAT_MOD_INVALID;
+	max_modifiers++;
 	free(external_only);
 	*modifiers = modifier_list;
-	return max_modifiers++;
+	return max_modifiers;
 
 error_modlist:
 error_alloc:
