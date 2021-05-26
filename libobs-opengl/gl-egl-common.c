@@ -288,9 +288,10 @@ gl_egl_query_dmabuf_formats(EGLDisplay egl_display, uint32_t **formats)
 	EGLint max_formats = 0;
 	EGLint *format_list = NULL;
 
-	if (!init_egl_query_dmabuf_formats_ext())
+	if (!init_egl_query_dmabuf_formats_ext()) {
 		blog(LOG_ERROR, "Unable to load eglQueryDmaBufFormatsEXT");
 		return 0;
+	}
 
 	if (!glEGLQueryDmaBufFormats(egl_display, 0, NULL, &max_formats)) {
 		blog(LOG_ERROR, "Cannot query the number of formats: %s",
