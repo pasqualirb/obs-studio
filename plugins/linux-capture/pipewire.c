@@ -394,6 +394,10 @@ static inline struct spa_pod *build_format(struct spa_pod_builder *b,
 							&SPA_FRACTION(ovi->fps_num,ovi->fps_den),
 							&SPA_FRACTION(0,1),
 							&SPA_FRACTION(360,1)),
+		SPA_FORMAT_VIDEO_maxFramerate, SPA_POD_CHOICE_RANGE_Fraction(
+							&SPA_FRACTION(ovi->fps_num,ovi->fps_den),
+							&SPA_FRACTION(1,1),
+							&SPA_FRACTION(360,1)),
 		0);
 	return spa_pod_builder_pop(b, &f[0]);
 }
