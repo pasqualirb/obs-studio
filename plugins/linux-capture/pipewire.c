@@ -92,6 +92,12 @@ struct _obs_pipewire_data {
 	} crop;
 
 	struct {
+		bool valid;
+		int x, y;
+		uint32_t width, height;
+	} damage;
+
+	struct {
 		bool visible;
 		bool valid;
 		int x, y;
@@ -273,6 +279,14 @@ static inline bool has_effective_crop(obs_pipewire_data *obs_pw)
 		obs_pw->crop.height < obs_pw->format.info.raw.size.height);
 }
 
+static inline bool has_effective_damage(obs_pipewire_data *obs_pw)
+{
+	return obs_pw->damage.valid &&
+	       (obs_pw->damage.x != 0 || obs_pw->damage.y != 0 ||
+		obs_pw->damage.width < obs_pw->format.info.raw.size.width ||
+		obs_pw->damage.height < obs_pw->format.info.raw.size.height);
+}
+
 static bool spa_pixel_format_to_drm_format(uint32_t spa_format,
 					   uint32_t *out_format)
 {
@@ -452,6 +466,24 @@ static void on_process_cb(void *user_data)
 		obs_pw->crop.valid = false;
 	}
 
+	/* Video Damage */
+	region = spa_buffer_find_meta_data(buffer, SPA_META_VideoDamage,
+					   sizeof(*region));
+	if (region && spa_meta_region_is_valid(region)) {
+		blog(LOG_DEBUG,
+		     "[pipewire] Damage Region available (%dx%d+%d+%d)",
+		     region->region.position.x, region->region.position.y,
+		     region->region.size.width, region->region.size.height);
+
+		obs_pw->damage.x = region->region.position.x;
+		obs_pw->damage.y = region->region.position.y;
+		obs_pw->damage.width = region->region.size.width;
+		obs_pw->damage.height = region->region.size.height;
+		obs_pw->damage.valid = true;
+	} else {
+		obs_pw->damage.valid = false;
+	}
+
 read_metadata:
 
 	/* Cursor */
@@ -503,7 +535,7 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 {
 	obs_pipewire_data *obs_pw = user_data;
 	struct spa_pod_builder pod_builder;
-	const struct spa_pod *params[3];
+	const struct spa_pod *params[4];
 	uint8_t params_buffer[1024];
 	int result;
 
@@ -560,7 +592,14 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 		SPA_PARAM_BUFFERS_dataType,
 		SPA_POD_Int((1 << SPA_DATA_MemPtr) | (1 << SPA_DATA_DmaBuf)));
 
-	pw_stream_update_params(obs_pw->stream, params, 3);
+	/* Video damage */
+	params[3] = spa_pod_builder_add_object(
+		&pod_builder, SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta,
+		SPA_PARAM_META_type, SPA_POD_Id(SPA_META_VideoDamage),
+		SPA_PARAM_META_size,
+		SPA_POD_Int(sizeof(struct spa_meta_region)));
+
+	pw_stream_update_params(obs_pw->stream, params, 4);
 
 	obs_pw->negotiated = true;
 }
@@ -1198,10 +1237,46 @@ void obs_pipewire_video_render(obs_pipewire_data *obs_pw, gs_effect_t *effect)
 	image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, obs_pw->texture);
 
+	struct {
+		bool valid;
+		int x, y;
+		uint32_t width, height;
+	} subregion;
+
 	if (has_effective_crop(obs_pw)) {
-		gs_draw_sprite_subregion(obs_pw->texture, 0, obs_pw->crop.x,
-					 obs_pw->crop.y, obs_pw->crop.width,
-					 obs_pw->crop.height);
+		if (has_effective_damage(obs_pw)) {
+			subregion.valid = true;
+			subregion.x = obs_pw->crop.x > obs_pw->damage.x ? obs_pw->crop.x : obs_pw->damage.x;
+			subregion.y = obs_pw->crop.y > obs_pw->damage.y ? obs_pw->crop.y : obs_pw->damage.y;
+			subregion.width = obs_pw->crop.x + obs_pw->crop.width > obs_pw->damage.x + obs_pw->damage.width ?
+				obs_pw->damage.x + obs_pw->damage.width - subregion.x :
+				obs_pw->crop.x + obs_pw->crop.width - subregion.x;
+			subregion.height = obs_pw->crop.y + obs_pw->crop.height > obs_pw->damage.y + obs_pw->damage.height ?
+				obs_pw->damage.y + obs_pw->damage.height - subregion.y :
+				obs_pw->crop.y + obs_pw->crop.height - subregion.y;
+		} else {
+			subregion.valid = true;
+			subregion.x = obs_pw->crop.x;
+			subregion.y = obs_pw->crop.y;
+			subregion.width = obs_pw->crop.width;
+			subregion.height = obs_pw->crop.height;
+		}
+	} else {
+		if (has_effective_damage(obs_pw)) {
+			subregion.valid = true;
+			subregion.x = obs_pw->damage.x;
+			subregion.y = obs_pw->damage.y;
+			subregion.width = obs_pw->damage.width;
+			subregion.height = obs_pw->damage.height;
+		} else {
+			subregion.valid = false;
+		}
+	}
+
+	if (subregion.valid) {
+		gs_draw_sprite_subregion(obs_pw->texture, 0,
+					 subregion.x, subregion.y,
+					 subregion.width, subregion.height);
 	} else {
 		gs_draw_sprite(obs_pw->texture, 0, 0, 0);
 	}
