@@ -1238,9 +1238,43 @@ void obs_pipewire_video_render(obs_pipewire_data *obs_pw, gs_effect_t *effect)
 	gs_effect_set_texture(image, obs_pw->texture);
 
 	if (has_effective_crop(obs_pw)) {
-		gs_draw_sprite_subregion(obs_pw->texture, 0, obs_pw->crop.x,
-					 obs_pw->crop.y, obs_pw->crop.width,
-					 obs_pw->crop.height);
+		if (has_effective_damage(obs_pw)) {
+			blog(LOG_DEBUG,
+			     "[pipewire] Drawing with damage (%dx%d+%d+%d)",
+			     obs_pw->damage.x, obs_pw->damage.y,
+			     obs_pw->damage.width, obs_pw->damage.height);
+
+			uint32_t x = obs_pw->damage.x - obs_pw->crop.x > 0 ?
+				obs_pw->damage.x - obs_pw->crop.x : 0;
+			uint32_t y = obs_pw->damage.y - obs_pw->crop.y > 0 ?
+				obs_pw->damage.y - obs_pw->crop.y : 0;
+
+			uint32_t width = obs_pw->crop.width > obs_pw->damage.x + obs_pw->damage.width - obs_pw->crop.x ?
+				obs_pw->damage.x + obs_pw->damage.width - obs_pw->crop.x > 0 ?
+				obs_pw->damage.x + obs_pw->damage.width - obs_pw->crop.x : 0
+				: obs->crop.width;
+
+			uint32_t height = obs_pw->crop.height > obs_pw->damage.y + obs_pw->damage.height - obs_pw->crop.y ?
+				obs_pw->damage.y + obs_pw->damage.height - obs_pw->crop.y > 0 ?
+				obs_pw->damage.y + obs_pw->damage.height - obs_pw->crop.y : 0
+				: obs->crop.height;
+
+
+			float damage_x = x;
+			float damage_y = y;
+
+			gs_matrix_push();
+			gs_matrix_translate3f(damage_x, damage_y, 0.0f);
+
+			gs_draw_sprite_subregion(obs_pw->texture, 0, x, y,
+						 width, height);
+
+			gs_matrix_pop();
+		} else {
+			gs_draw_sprite_subregion(obs_pw->texture, 0, obs_pw->crop.x,
+						 obs_pw->crop.y, obs_pw->crop.width,
+						 obs_pw->crop.height);
+		}
 	} else {
 		if (has_effective_damage(obs_pw)) {
 			blog(LOG_DEBUG,
