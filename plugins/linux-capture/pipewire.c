@@ -1242,7 +1242,26 @@ void obs_pipewire_video_render(obs_pipewire_data *obs_pw, gs_effect_t *effect)
 					 obs_pw->crop.y, obs_pw->crop.width,
 					 obs_pw->crop.height);
 	} else {
-		gs_draw_sprite(obs_pw->texture, 0, 0, 0);
+		if (has_effective_damage(obs_pw)) {
+			blog(LOG_DEBUG,
+			     "[pipewire] Drawing with damage (%dx%d+%d+%d)",
+			     obs_pw->damage.x, obs_pw->damage.y,
+			     obs_pw->damage.width, obs_pw->damage.height);
+
+			float damage_x = obs_pw->damage.x;
+			float damage_y = obs_pw->damage.y;
+
+			gs_matrix_push();
+			gs_matrix_translate3f(damage_x, damage_y, 0.0f);
+
+			gs_draw_sprite_subregion(obs_pw->texture, 0, obs_pw->damage.x,
+						 obs_pw->damage.y, obs_pw->damage.width,
+						 obs_pw->damage.height);
+
+			gs_matrix_pop();
+		} else {
+			gs_draw_sprite(obs_pw->texture, 0, 0, 0);
+		}
 	}
 
 	if (obs_pw->cursor.visible && obs_pw->cursor.valid &&
