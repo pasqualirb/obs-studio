@@ -71,9 +71,6 @@ struct _obs_pipewire_data {
 
 	uint32_t available_cursor_modes;
 
-	obs_source_t *source;
-	obs_data_t *settings;
-
 	gs_texture_t *texture;
 
 	struct pw_thread_loop *thread_loop;
@@ -1119,8 +1116,6 @@ void *obs_pipewire_create(enum obs_pw_capture_type capture_type,
 {
 	obs_pipewire_data *obs_pw = bzalloc(sizeof(obs_pipewire_data));
 
-	obs_pw->source = source;
-	obs_pw->settings = settings;
 	obs_pw->capture_type = capture_type;
 	obs_pw->cursor.visible = obs_data_get_bool(settings, "ShowCursor");
 
