@@ -1,6 +1,7 @@
 /* linux-pipewire.c
  *
  * Copyright 2021 columbarius <co1umbarius@protonmail.com>
+ * Copyright 2021 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +24,7 @@
 
 #include "pipewire-common.h"
 #include "pipewire-virtualcam.h"
+#include "pipewire-capture.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("linux-pipewire", "en-US")
@@ -37,6 +39,19 @@ bool obs_module_load(void)
 
 	// OBS PipeWire Virtual Camera
 	virtual_cam_register_output();
+
+	// OBS PipeWire Screen Capture
+	switch (obs_get_nix_platform()) {
+#ifdef ENABLE_WAYLAND
+	case OBS_NIX_PLATFORM_WAYLAND:
+#endif
+	case OBS_NIX_PLATFORM_X11_EGL:
+		pipewire_capture_load();
+		break;
+
+	case OBS_NIX_PLATFORM_X11_GLX:
+		break;
+	}
 
 	return true;
 }
