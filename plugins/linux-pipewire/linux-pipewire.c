@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2014 by Leonhard Oelke <leonhard@in-verted.de>
+Copyright (C) 2021 by Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,36 +17,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <obs-module.h>
 #include <obs-nix-platform.h>
 
+#include "pipewire-capture.h"
+
 OBS_DECLARE_MODULE()
-OBS_MODULE_USE_DEFAULT_LOCALE("linux-xshm", "en-US")
+OBS_MODULE_USE_DEFAULT_LOCALE("linux-pipewire", "en-US")
 MODULE_EXPORT const char *obs_module_description(void)
 {
-	return "xcomposite/xshm based window/screen capture for X11";
+	return "PipeWire based window/screen capture for X11 and Wayland";
 }
-
-extern struct obs_source_info xshm_input;
 
 extern void xcomposite_load(void);
 extern void xcomposite_unload(void);
 
 bool obs_module_load(void)
 {
-	enum obs_nix_platform_type platform = obs_get_nix_platform();
 
-	switch (platform) {
-	case OBS_NIX_PLATFORM_X11_GLX:
-		obs_register_source(&xshm_input);
-		xcomposite_load();
-		break;
-
-	case OBS_NIX_PLATFORM_X11_EGL:
-		obs_register_source(&xshm_input);
-		break;
-
+	switch (obs_get_nix_platform()) {
 #ifdef ENABLE_WAYLAND
 	case OBS_NIX_PLATFORM_WAYLAND:
-		break;
 #endif
+	case OBS_NIX_PLATFORM_X11_EGL:
+		pipewire_capture_load();
+		break;
+
+	case OBS_NIX_PLATFORM_X11_GLX:
+		break;
 	}
 
 	return true;
@@ -54,6 +49,6 @@ bool obs_module_load(void)
 
 void obs_module_unload(void)
 {
-	if (obs_get_nix_platform() == OBS_NIX_PLATFORM_X11_GLX)
-		xcomposite_unload();
+	if (obs_get_nix_platform() != OBS_NIX_PLATFORM_X11_GLX)
+		pipewire_capture_unload();
 }
