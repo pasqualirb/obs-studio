@@ -29,12 +29,14 @@ set(linux-pipewire_INCLUDES
 )
 
 set(linux-pipewire_SOURCES
+	dbus-requests.c
 	linux-pipewire.c
 	pipewire.c
 	pipewire-capture.c
 	portal.c
 )
 set(linux-pipewire_HEADERS
+	dbus-requests.h
 	pipewire.h
 	pipewire-capture.h
 	portal.h
