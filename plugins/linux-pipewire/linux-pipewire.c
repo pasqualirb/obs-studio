@@ -16,6 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <obs-module.h>
 #include <obs-nix-platform.h>
+#include <pipewire/pipewire.h>
 
 #include "pipewire-capture.h"
 
@@ -37,6 +38,7 @@ bool obs_module_load(void)
 	case OBS_NIX_PLATFORM_WAYLAND:
 #endif
 	case OBS_NIX_PLATFORM_X11_EGL:
+		pw_init(NULL, NULL);
 		pipewire_capture_load();
 		break;
 
@@ -50,5 +52,5 @@ bool obs_module_load(void)
 void obs_module_unload(void)
 {
 	if (obs_get_nix_platform() != OBS_NIX_PLATFORM_X11_GLX)
-		pipewire_capture_unload();
+		pw_deinit();
 }
