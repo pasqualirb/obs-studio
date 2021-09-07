@@ -27,9 +27,6 @@ MODULE_EXPORT const char *obs_module_description(void)
 	return "PipeWire based window/screen capture for X11 and Wayland";
 }
 
-extern void xcomposite_load(void);
-extern void xcomposite_unload(void);
-
 bool obs_module_load(void)
 {
 
