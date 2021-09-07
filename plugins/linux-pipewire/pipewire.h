@@ -25,7 +25,7 @@
 
 typedef struct _obs_pipewire_data obs_pipewire_data;
 
-obs_pipewire_data *obs_pipewire_new_from_fd(int fd, uint32_t node);
+obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node);
 
 void obs_pipewire_set_show_cursor(obs_pipewire_data *obs_pw, bool show_cursor);
 

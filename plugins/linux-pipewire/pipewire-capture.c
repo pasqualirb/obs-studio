@@ -134,7 +134,7 @@ static void on_pipewire_remote_opened_cb(GObject *source, GAsyncResult *res,
 	}
 
 	pw_capture->obs_pw =
-		obs_pipewire_new_from_fd(pipewire_fd, pw_capture->node_id);
+		obs_pipewire_new_for_node(pipewire_fd, pw_capture->node_id);
 	obs_pipewire_set_show_cursor(pw_capture->obs_pw,
 				     pw_capture->show_cursor);
 }

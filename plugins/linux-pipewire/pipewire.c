@@ -457,7 +457,7 @@ static const struct pw_core_events core_events = {
 	.error = on_core_error_cb,
 };
 
-obs_pipewire_data *obs_pipewire_new_from_fd(int fd, uint32_t node)
+obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 {
 	obs_pipewire_data *obs_pw;
 	struct spa_pod_builder pod_builder;
