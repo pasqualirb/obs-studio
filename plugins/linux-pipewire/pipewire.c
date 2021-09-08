@@ -457,13 +457,45 @@ static const struct pw_core_events core_events = {
 	.error = on_core_error_cb,
 };
 
-obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
+static void connect_stream(obs_pipewire_data *obs_pw, uint32_t node)
 {
-	obs_pipewire_data *obs_pw;
 	struct spa_pod_builder pod_builder;
 	const struct spa_pod *params[1];
 	uint8_t params_buffer[1024];
 	struct obs_video_info ovi;
+
+	/* Stream parameters */
+	pod_builder =
+		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
+
+	obs_get_video_info(&ovi);
+	params[0] = spa_pod_builder_add_object(
+		&pod_builder, SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
+		SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video),
+		SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
+		SPA_FORMAT_VIDEO_format,
+		SPA_POD_CHOICE_ENUM_Id(
+			4, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
+			SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx),
+		SPA_FORMAT_VIDEO_size,
+		SPA_POD_CHOICE_RANGE_Rectangle(
+			&SPA_RECTANGLE(320, 240), // Arbitrary
+			&SPA_RECTANGLE(1, 1), &SPA_RECTANGLE(8192, 4320)),
+		SPA_FORMAT_VIDEO_framerate,
+		SPA_POD_CHOICE_RANGE_Fraction(
+			&SPA_FRACTION(ovi.fps_num, ovi.fps_den),
+			&SPA_FRACTION(0, 1), &SPA_FRACTION(360, 1)));
+	obs_pw->video_info = ovi;
+
+	pw_stream_connect(obs_pw->stream, PW_DIRECTION_INPUT, node,
+			  PW_STREAM_FLAG_AUTOCONNECT |
+				  PW_STREAM_FLAG_MAP_BUFFERS,
+			  params, 1);
+}
+
+obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
+{
+	obs_pipewire_data *obs_pw;
 
 	obs_pw = bzalloc(sizeof(obs_pipewire_data));
 	obs_pw->pipewire_fd = fd;
@@ -501,33 +533,7 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 			       &stream_events, obs_pw);
 	blog(LOG_INFO, "[pipewire] created stream %p", obs_pw->stream);
 
-	/* Stream parameters */
-	pod_builder =
-		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
-
-	obs_get_video_info(&ovi);
-	params[0] = spa_pod_builder_add_object(
-		&pod_builder, SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
-		SPA_FORMAT_mediaType, SPA_POD_Id(SPA_MEDIA_TYPE_video),
-		SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
-		SPA_FORMAT_VIDEO_format,
-		SPA_POD_CHOICE_ENUM_Id(
-			4, SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
-			SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx),
-		SPA_FORMAT_VIDEO_size,
-		SPA_POD_CHOICE_RANGE_Rectangle(
-			&SPA_RECTANGLE(320, 240), // Arbitrary
-			&SPA_RECTANGLE(1, 1), &SPA_RECTANGLE(8192, 4320)),
-		SPA_FORMAT_VIDEO_framerate,
-		SPA_POD_CHOICE_RANGE_Fraction(
-			&SPA_FRACTION(ovi.fps_num, ovi.fps_den),
-			&SPA_FRACTION(0, 1), &SPA_FRACTION(360, 1)));
-	obs_pw->video_info = ovi;
-
-	pw_stream_connect(obs_pw->stream, PW_DIRECTION_INPUT, node,
-			  PW_STREAM_FLAG_AUTOCONNECT |
-				  PW_STREAM_FLAG_MAP_BUFFERS,
-			  params, 1);
+	connect_stream(obs_pw, node);
 
 	blog(LOG_INFO, "[pipewire] playing stream…");
 
