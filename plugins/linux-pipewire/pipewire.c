@@ -593,11 +593,15 @@ static void on_process_texture_cb(void *user_data)
 		modifierless = obs_pw->format.info.raw.modifier ==
 			       DRM_FORMAT_MOD_INVALID;
 
+		/*
 		obs_pw->texture = gs_texture_create_from_dmabuf(
 			obs_pw->format.info.raw.size.width,
 			obs_pw->format.info.raw.size.height, drm_format,
 			GS_BGRX, planes, fds, strides, offsets,
 			modifierless ? NULL : modifiers);
+		*/
+		// Simulate failed import
+		obs_pw->texture = NULL;
 
 		if (obs_pw->texture == NULL) {
 			strip_modifier(obs_pw, obs_pw->format.info.raw.format,
