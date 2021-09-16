@@ -1385,6 +1385,14 @@ gs_texture_t *gs_texture_create_from_dmabuf(
 		n_planes, fds, strides, offsets, modifiers);
 }
 
+int gs_query_dmabuf_modifiers(uint32_t drm_format, uint64_t **modifiers)
+{
+	graphics_t *graphics = thread_graphics;
+
+	return graphics->exports.device_query_dmabuf_modifiers(
+		graphics->device, drm_format, modifiers);
+}
+
 #endif
 
 gs_texture_t *gs_cubetexture_create(uint32_t size,

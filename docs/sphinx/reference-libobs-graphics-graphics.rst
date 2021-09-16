@@ -997,6 +997,31 @@ Texture Functions
 
 ---------------------
 
+.. function:: int *gs_query_dmabuf_modifiers(uint32_t drm_format, uint64_t **modifiers)
+
+   **Linux only:** Queries the supported DMA-BUF modifiers for a given format.
+
+   DMA-BUFs allow graphic cards to optimize storing or rendering by storing
+   the buffer content in custom layouts. These layouts for a given format are
+   tracked by the modifier of the DMA-BUF. Since these layouts are a hardware
+   feature, it's up to the used graphics card and the used graphics api which
+   modifiers are supported for a given format.
+
+   This function queries all supported modifiers for a format, stores them
+   as an array and returns the number of supported modifiers.
+
+   The caller of this function is required to free the array.
+
+   Note: DRM_FORMAT_MOD_INVALID is used as a token marking the support for
+   implicit modifiers.
+
+   :param drm_format:   DRM format of the DMA-BUF buffer
+   :param modifiers:    Pointer to receive an array of modifiers
+   :return:             The number of supported modifiers stored in modifiers or 0
+   :rtype:              int
+
+---------------------
+
 .. function:: gs_texture_t *gs_texture_create_from_iosurface(void *iosurf)
 
    **Mac only:** Creates a texture from an IOSurface.

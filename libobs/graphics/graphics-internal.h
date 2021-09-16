@@ -333,6 +333,9 @@ struct gs_exports {
 		uint32_t drm_format, enum gs_color_format color_format,
 		uint32_t n_planes, const int *fds, const uint32_t *strides,
 		const uint32_t *offsets, const uint64_t *modifiers);
+	int (*device_query_dmabuf_modifiers)(gs_device_t *device,
+					     uint32_t drm_format,
+					     uint64_t **modifiers);
 #endif
 };
 

@@ -599,6 +599,17 @@ static struct gs_texture *gl_x11_glx_device_texture_create_from_dmabuf(
 	return NULL;
 }
 
+static int gl_x11_glx_device_query_dmabuf_modifiers(gs_device_t *device,
+						    uint32_t drm_format,
+						    uint64_t **modifiers)
+{
+	UNUSED_PARAMETER(device);
+	UNUSED_PARAMETER(drm_format);
+	UNUSED_PARAMETER(modifiers);
+
+	return 0;
+}
+
 static const struct gl_winsys_vtable glx_winsys_vtable = {
 	.windowinfo_create = gl_x11_glx_windowinfo_create,
 	.windowinfo_destroy = gl_x11_glx_windowinfo_destroy,
@@ -616,6 +627,8 @@ static const struct gl_winsys_vtable glx_winsys_vtable = {
 	.device_present = gl_x11_glx_device_present,
 	.device_texture_create_from_dmabuf =
 		gl_x11_glx_device_texture_create_from_dmabuf,
+	.device_query_dmabuf_modifiers =
+		gl_x11_glx_device_query_dmabuf_modifiers,
 };
 
 const struct gl_winsys_vtable *gl_x11_glx_get_winsys_vtable(void)
