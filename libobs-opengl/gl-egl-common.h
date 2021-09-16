@@ -12,3 +12,6 @@ gl_egl_create_dmabuf_image(EGLDisplay egl_display, unsigned int width,
 			   enum gs_color_format color_format, uint32_t n_planes,
 			   const int *fds, const uint32_t *strides,
 			   const uint32_t *offsets, const uint64_t *modifiers);
+
+int gl_egl_query_dmabuf_modifiers(EGLDisplay egl_display, uint32_t drm_format,
+				  uint64_t **modifiers);
