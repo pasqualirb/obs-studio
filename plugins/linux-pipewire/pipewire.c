@@ -60,6 +60,7 @@ struct _obs_pipewire_data {
 	struct spa_hook core_listener;
 
 	struct pw_stream *stream;
+	struct spa_source *reneg;
 	struct spa_hook stream_listener;
 	struct spa_video_info format;
 
@@ -399,6 +400,54 @@ static void destroy_modifier_info(int32_t n_formats,
 	bfree(modifier_info);
 }
 
+static void strip_modifier(obs_pipewire_data *obs_pw, uint32_t spa_format,
+			   uint64_t modifier)
+{
+	for (int i = 0; i < obs_pw->n_formats; i++) {
+		if (obs_pw->modifier_info[i].spa_format != spa_format)
+			continue;
+
+		uint32_t k = 0;
+		for (int32_t j = 0; j < obs_pw->modifier_info[i].n_modifiers;
+		     j++) {
+			if (obs_pw->modifier_info[i].modifiers[j] == modifier)
+				continue;
+			obs_pw->modifier_info[i].modifiers[k++] =
+				obs_pw->modifier_info[i].modifiers[j];
+		}
+
+		if (k > 0) {
+			obs_pw->modifier_info[i].n_modifiers = k;
+			brealloc(obs_pw->modifier_info[i].modifiers,
+				 k * sizeof(uint64_t));
+		} else {
+			obs_pw->modifier_info[i].n_modifiers = 0;
+			bfree(obs_pw->modifier_info[i].modifiers);
+			obs_pw->modifier_info[i].modifiers = NULL;
+		}
+	}
+}
+
+static void renegotiate_format(void *data, uint64_t expirations)
+{
+	UNUSED_PARAMETER(expirations);
+	obs_pipewire_data *obs_pw = (obs_pipewire_data *)data;
+	const struct spa_pod **params = NULL;
+
+	blog(LOG_DEBUG, "[pipewire] Renegotiating stream ...");
+
+	pw_thread_loop_lock(obs_pw->thread_loop);
+
+	uint8_t params_buffer[2048];
+	struct spa_pod_builder pod_builder =
+		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
+	uint32_t n_params = build_format_params(obs_pw, &pod_builder, &params);
+
+	pw_stream_update_params(obs_pw->stream, params, n_params);
+	pw_thread_loop_unlock(obs_pw->thread_loop);
+	bfree(params);
+}
+
 /* ------------------------------------------------- */
 
 static void on_process_media_cb(void *user_data)
@@ -543,11 +592,20 @@ static void on_process_texture_cb(void *user_data)
 
 		modifierless = obs_pw->format.info.raw.modifier ==
 			       DRM_FORMAT_MOD_INVALID;
+
 		obs_pw->texture = gs_texture_create_from_dmabuf(
 			obs_pw->format.info.raw.size.width,
 			obs_pw->format.info.raw.size.height, drm_format,
 			GS_BGRX, planes, fds, strides, offsets,
 			modifierless ? NULL : modifiers);
+
+		if (obs_pw->texture == NULL) {
+			strip_modifier(obs_pw, obs_pw->format.info.raw.format,
+				       obs_pw->format.info.raw.modifier);
+			pw_loop_signal_event(
+				pw_thread_loop_get_loop(obs_pw->thread_loop),
+				obs_pw->reneg);
+		}
 	} else {
 		blog(LOG_DEBUG, "[pipewire] Buffer has memory texture");
 		enum gs_color_format obs_format;
@@ -828,6 +886,12 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 
 	pw_core_add_listener(obs_pw->core, &obs_pw->core_listener, &core_events,
 			     obs_pw);
+
+	/* Signal to renegotiate */
+	obs_pw->reneg =
+		pw_loop_add_event(pw_thread_loop_get_loop(obs_pw->thread_loop),
+				  renegotiate_format, obs_pw);
+	blog(LOG_INFO, "[pipewire] registered event %p", obs_pw->reneg);
 
 	/* Stream */
 	obs_pw->stream = pw_stream_new(
