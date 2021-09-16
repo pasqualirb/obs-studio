@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <libdrm/drm_fourcc.h>
+
 #include <glad/glad_egl.h>
 
 #if defined(__linux__)
@@ -213,6 +215,126 @@ gl_egl_create_dmabuf_image(EGLDisplay egl_display, unsigned int width,
 	eglDestroyImage(egl_display, egl_image);
 
 	return texture;
+}
+
+EGLint query_dmabuf_formats(EGLDisplay egl_display, EGLint **formats)
+{
+	EGLint max_formats = 0;
+	EGLint *format_list = NULL;
+
+	if (!glad_eglQueryDmaBufFormatsEXT) {
+		blog(LOG_ERROR, "Unable to load eglQueryDmaBufFormatsEXT");
+		return 0;
+	}
+
+	if (!glad_eglQueryDmaBufFormatsEXT(egl_display, 0, NULL,
+					   &max_formats)) {
+		blog(LOG_ERROR, "Cannot query the number of formats: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		return 0;
+	}
+
+	format_list = bzalloc(max_formats * sizeof(EGLint));
+	if (!format_list) {
+		blog(LOG_ERROR, "Unable to allocate memory");
+		return 0;
+	}
+
+	if (!glad_eglQueryDmaBufFormatsEXT(egl_display, max_formats,
+					   format_list, &max_formats)) {
+		blog(LOG_ERROR, "Cannot query a list of formats: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		free(format_list);
+		return 0;
+	}
+
+	*formats = format_list;
+	return max_formats;
+}
+
+EGLint query_dmabuf_modifiers(EGLDisplay egl_display, EGLint drm_format,
+			      EGLuint64KHR **modifiers)
+{
+	EGLint max_modifiers = 0;
+	EGLuint64KHR *modifier_list = NULL;
+	EGLBoolean *external_only = NULL;
+
+	if (!glad_eglQueryDmaBufModifiersEXT) {
+		blog(LOG_ERROR, "Unable to load eglQueryDmaBufModifiersEXT");
+		return 0;
+	}
+
+	if (!glad_eglQueryDmaBufModifiersEXT(egl_display, drm_format, 0, NULL,
+					     NULL, &max_modifiers)) {
+		blog(LOG_ERROR, "Cannot query the number of modifiers: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		return 0;
+	}
+
+	modifier_list = bzalloc(max_modifiers * sizeof(EGLuint64KHR));
+	external_only = bzalloc(max_modifiers * sizeof(EGLBoolean));
+	if (!modifier_list || !external_only) {
+		blog(LOG_ERROR, "Unable to allocate memory");
+		bfree(external_only);
+		bfree(modifier_list);
+		return 0;
+	}
+
+	if (!glad_eglQueryDmaBufModifiersEXT(egl_display, drm_format,
+					     max_modifiers, modifier_list,
+					     external_only, &max_modifiers)) {
+		blog(LOG_ERROR, "Cannot query a list of modifiers: %s",
+		     gl_egl_error_to_string(eglGetError()));
+		bfree(external_only);
+		bfree(modifier_list);
+		return 0;
+	}
+
+	bfree(external_only);
+	*modifiers = modifier_list;
+	return max_modifiers;
+}
+
+int gl_egl_query_dmabuf_modifiers(EGLDisplay egl_display, uint32_t drm_format,
+				  uint64_t **modifiers)
+{
+	if (!glad_eglQueryDmaBufFormatsEXT || !glad_eglQueryDmaBufModifiersEXT)
+		return 0;
+
+	EGLint num_formats;
+	EGLint *format_list;
+	bool format_available;
+
+	if (!(num_formats = query_dmabuf_formats(egl_display, &format_list))) {
+		blog(LOG_ERROR, "No formats supported by dmabuf");
+		return 0;
+	}
+
+	for (int i = 0; i < num_formats; i++) {
+		if (drm_format == (uint32_t)format_list[i]) {
+			format_available = true;
+			break;
+		}
+	}
+	bfree(format_list);
+
+	if (!format_available) {
+		blog(LOG_ERROR, "Format %u not supported with modifiers",
+		     drm_format);
+		return 0;
+	}
+
+	EGLint num_modifiers;
+	EGLuint64KHR *modifier_list;
+
+	num_modifiers =
+		query_dmabuf_modifiers(egl_display, drm_format, &modifier_list);
+
+	*modifiers = bzalloc((num_modifiers + 1) * sizeof(uint64_t));
+	memcpy(*modifiers, modifier_list, num_modifiers * sizeof(uint64_t));
+	bfree(modifier_list);
+	*modifiers[num_modifiers] = DRM_FORMAT_MOD_INVALID;
+	return num_modifiers + 1;
 }
 
 const char *gl_egl_error_to_string(EGLint error_number)
