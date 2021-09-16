@@ -471,6 +471,48 @@ static void destroy_modifier_info(int32_t n_formats,
 	}
 	bfree(modifier_info);
 }
+
+static void strip_modifier(obs_pipewire_data *obs_pw, uint32_t spa_format,
+			   uint64_t modifier)
+{
+	for (int i = 0; i < obs_pw->n_formats; i++) {
+		if (obs_pw->modifier_info[i].spa_format != spa_format)
+			continue;
+		if (obs_pw->modifier_info[i].n_modifiers > 1) {
+			uint64_t *modifiers_tmp = bzalloc(
+				(obs_pw->modifier_info[i].n_modifiers - 1) *
+				sizeof(struct modifier_info));
+			uint32_t k = 0;
+			for (int32_t j = 0;
+			     j < obs_pw->modifier_info[i].n_modifiers; j++) {
+				if (obs_pw->modifier_info[i].modifiers[j] ==
+				    modifier)
+					continue;
+				assert(k + 1 <
+				       obs_pw->modifier_info[i].n_modifiers);
+				modifiers_tmp[k++] =
+					obs_pw->modifier_info[i].modifiers[j];
+				obs_pw->modifier_info[i].n_modifiers = k;
+				bfree(obs_pw->modifier_info[i].modifiers);
+				obs_pw->modifier_info[i].modifiers =
+					modifiers_tmp;
+			}
+		} else {
+			obs_pw->modifier_info[i].n_modifiers = 0;
+			bfree(obs_pw->modifier_info[i].modifiers);
+			obs_pw->modifier_info[i].modifiers = NULL;
+		}
+	}
+	const struct spa_pod **params = NULL;
+
+	uint8_t params_buffer[2048];
+	struct spa_pod_builder pod_builder =
+		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
+	uint32_t n_params = build_format_params(obs_pw, &pod_builder, &params);
+
+	pw_stream_update_params(obs_pw->stream, params, n_params);
+	bfree(params);
+}
 /* ------------------------------------------------- */
 
 static void on_process_cb(void *user_data)
@@ -552,6 +594,10 @@ static void on_process_cb(void *user_data)
 				GS_BGRX, planes, fds, strides, offsets,
 				modifiers);
 		}
+
+		if (obs_pw->texture == NULL)
+			strip_modifier(obs_pw, obs_pw->format.info.raw.format,
+				       obs_pw->format.info.raw.modifier);
 	} else {
 		blog(LOG_DEBUG, "[pipewire] Buffer has memory texture");
 		enum gs_color_format obs_format;
