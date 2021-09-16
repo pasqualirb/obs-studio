@@ -581,6 +581,7 @@ static void on_process_cb(void *user_data)
 		}
 
 		g_clear_pointer(&obs_pw->texture, gs_texture_destroy);
+		/*
 		if (obs_pw->format.info.raw.modifier ==
 		    DRM_FORMAT_MOD_INVALID) {
 			obs_pw->texture = gs_texture_create_from_dmabuf(
@@ -594,6 +595,9 @@ static void on_process_cb(void *user_data)
 				GS_BGRX, planes, fds, strides, offsets,
 				modifiers);
 		}
+		*/
+		// Simulate failed import
+		obs_pw->texture = NULL;
 
 		if (obs_pw->texture == NULL)
 			strip_modifier(obs_pw, obs_pw->format.info.raw.format,
