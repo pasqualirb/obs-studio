@@ -134,3 +134,11 @@ extern struct gs_texture *device_texture_create_from_dmabuf(
 		device, width, height, drm_format, color_format, n_planes, fds,
 		strides, offsets, modifiers);
 }
+
+extern int device_query_dmabuf_modifiers(gs_device_t *device,
+					 uint32_t drm_format,
+					 uint64_t **modifiers)
+{
+	return gl_vtable->device_query_dmabuf_modifiers(device, drm_format,
+							modifiers);
+}

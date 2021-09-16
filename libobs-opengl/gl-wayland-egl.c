@@ -340,6 +340,14 @@ static struct gs_texture *gl_wayland_egl_device_texture_create_from_dmabuf(
 					  fds, strides, offsets, modifiers);
 }
 
+static int gl_wayland_egl_device_query_dmabuf_modifiers(
+	gs_device_t *device, uint32_t drm_format, uint64_t **modifiers)
+{
+	struct gl_platform *plat = device->plat;
+
+	return gl_egl_query_dmabuf_modifiers(plat->display, drm_format, modifiers);
+}
+
 static const struct gl_winsys_vtable egl_wayland_winsys_vtable = {
 	.windowinfo_create = gl_wayland_egl_windowinfo_create,
 	.windowinfo_destroy = gl_wayland_egl_windowinfo_destroy,
@@ -357,6 +365,8 @@ static const struct gl_winsys_vtable egl_wayland_winsys_vtable = {
 	.device_present = gl_wayland_egl_device_present,
 	.device_texture_create_from_dmabuf =
 		gl_wayland_egl_device_texture_create_from_dmabuf,
+	.device_query_dmabuf_modifiers =
+		gl_wayland_egl_device_query_dmabuf_modifiers,
 };
 
 const struct gl_winsys_vtable *gl_wayland_egl_get_winsys_vtable(void)

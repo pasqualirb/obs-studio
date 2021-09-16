@@ -178,6 +178,10 @@ EXPORT gs_texture_t *device_texture_create_from_dmabuf(
 	uint32_t n_planes, const int *fds, const uint32_t *strides,
 	const uint32_t *offsets, const uint64_t *modifiers);
 
+EXPORT int device_query_dmabuf_modifiers(gs_device_t *device,
+					 uint32_t drm_format,
+					 uint64_t **modifiers);
+
 #endif
 
 #ifdef __cplusplus

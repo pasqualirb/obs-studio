@@ -932,6 +932,8 @@ EXPORT gs_texture_t *gs_texture_create_from_dmabuf(
 	const uint32_t *strides, const uint32_t *offsets,
 	const uint64_t *modifiers);
 
+EXPORT int gs_query_dmabuf_modifiers(uint32_t drm_format, uint64_t **modifiers);
+
 #endif
 
 /* inline functions used by modules */
