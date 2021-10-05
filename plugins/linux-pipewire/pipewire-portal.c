@@ -98,10 +98,21 @@ void open_pipewire_remote(struct obs_pipewire_portal_data *portal_handle)
 
 	g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
 
-	g_dbus_proxy_call_with_unix_fd_list(
-		portal_get_dbus_proxy(portal_handle->type), "OpenPipeWireRemote",
-		g_variant_new("(oa{sv})", portal_handle->session_handle,
-			      &builder),
-		G_DBUS_CALL_FLAGS_NONE, -1, NULL, portal_handle->cancellable,
-		on_pipewire_remote_opened_cb, portal_handle);
+	switch (portal_handle->type) {
+	case PORTAL_SCREENCAST:
+		g_dbus_proxy_call_with_unix_fd_list(
+			portal_get_dbus_proxy(portal_handle->type), "OpenPipeWireRemote",
+			g_variant_new("(oa{sv})", portal_handle->session_handle,
+				      &builder),
+			G_DBUS_CALL_FLAGS_NONE, -1, NULL, portal_handle->cancellable,
+			on_pipewire_remote_opened_cb, portal_handle);
+		break;
+	case PORTAL_CAMERA:
+		g_dbus_proxy_call_with_unix_fd_list(
+			portal_get_dbus_proxy(portal_handle->type), "OpenPipeWireRemote",
+			g_variant_new("(a{sv})", &builder),
+			G_DBUS_CALL_FLAGS_NONE, -1, NULL, portal_handle->cancellable,
+			on_pipewire_remote_opened_cb, portal_handle);
+		break;
+	}
 }
