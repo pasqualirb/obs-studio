@@ -37,6 +37,7 @@ set(linux-pipewire_SOURCES
 	pipewire-common.c
 	pipewire.c
 	pipewire-capture.c
+	pipewire-camera.c
 	portal.c
 	dbus-requests.c
 )
@@ -45,6 +46,7 @@ set(linux-pipewire_HEADERS
 	pipewire-common.h
 	pipewire.h
 	pipewire-capture.h
+	pipewire-camera.h
 	portal.h
 	dbus-requests.h
 )
