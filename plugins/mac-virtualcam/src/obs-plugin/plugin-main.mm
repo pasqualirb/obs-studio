@@ -207,7 +207,7 @@ static void virtualcam_output_raw_video(void *data, struct video_data *frame)
 
 struct obs_output_info virtualcam_output_info = {
 	.id = "virtualcam_output",
-	.flags = OBS_OUTPUT_VIDEO,
+	.flags = OBS_OUTPUT_VIDEO | OBS_OUTPUT_VIRTUALCAM,
 	.get_name = virtualcam_output_get_name,
 	.create = virtualcam_output_create,
 	.destroy = virtualcam_output_destroy,
@@ -221,11 +221,6 @@ bool obs_module_load(void)
 	blog(LOG_INFO, "version=%s", PLUGIN_VERSION);
 
 	obs_register_output(&virtualcam_output_info);
-
-	obs_data_t *obs_settings = obs_data_create();
-	obs_data_set_bool(obs_settings, "vcamEnabled", true);
-	obs_apply_private_data(obs_settings);
-	obs_data_release(obs_settings);
 
 	return true;
 }
