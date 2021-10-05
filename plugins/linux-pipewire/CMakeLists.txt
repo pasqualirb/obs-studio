@@ -30,9 +30,13 @@ add_definitions(
 
 set(linux-pipewire_SOURCES
 	linux-pipewire.c
+	pipewire-virtualcam.c
+	pipewire-common.c
 	loadhelper.c
 )
 set(linux-pipewire_HEADERS
+	pipewire-virtualcam.h
+	pipewire-common.h
 	loadhelper.h
 )
 

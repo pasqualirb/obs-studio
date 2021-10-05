@@ -1,4 +1,4 @@
-/* linux-pipewire.c
+/* pipewire-virtualcam.h
  *
  * Copyright 2021 columbarius <co1umbarius@protonmail.com>
  *
@@ -18,38 +18,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <obs/obs-module.h>
-#include <obs/obs-nix-platform.h>
+#pragma once
 
-#include "loadhelper.h"
-
-#include "pipewire-common.h"
-#include "pipewire-virtualcam.h"
-
-OBS_DECLARE_MODULE()
-
-bool obs_module_load(void)
-{
-	obs_pipewire_load();
-
-	// Check if v4l2 virtual cam was loaded
-	if (loopback_module_available()) {
-		return true;
-	}
-
-	// OBS PipeWire Virtual Camera
-	obs_data_t *obs_settings = obs_data_create();
-
-	virtual_cam_register_output();
-
-	obs_data_set_bool(obs_settings, "vcamEnabled", true);
-	obs_apply_private_data(obs_settings);
-	obs_data_release(obs_settings);
-
-	return true;
-}
-
-void obs_module_unload(void)
-{
-	obs_pipewire_unload();
-}
+void virtual_cam_register_output(void);
