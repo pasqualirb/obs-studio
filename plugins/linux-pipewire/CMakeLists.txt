@@ -30,8 +30,10 @@ add_definitions(
 
 set(linux-pipewire_SOURCES
 	linux-pipewire.c
+	loadhelper.c
 )
 set(linux-pipewire_HEADERS
+	loadhelper.h
 )
 
 set(linux-pipewire_LIBRARIES

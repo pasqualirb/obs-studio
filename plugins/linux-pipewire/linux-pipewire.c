@@ -21,10 +21,17 @@
 #include <obs/obs-module.h>
 #include <obs/obs-nix-platform.h>
 
+#include "loadhelper.h"
+
 OBS_DECLARE_MODULE()
 
 bool obs_module_load(void)
 {
+	// Check if v4l2 virtual cam was loaded
+	if (loopback_module_available()) {
+		return true;
+	}
+
 	return true;
 }
 
