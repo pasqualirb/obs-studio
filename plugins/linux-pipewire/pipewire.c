@@ -138,6 +138,10 @@ static bool spa_pixel_format_to_drm_format(uint32_t spa_format,
 		*out_format = DRM_FORMAT_XRGB8888;
 		break;
 
+	case SPA_VIDEO_FORMAT_YUY2:
+		*out_format = DRM_FORMAT_YUYV;
+		break;
+
 	default:
 		return false;
 	}
@@ -167,6 +171,11 @@ static bool spa_pixel_format_to_obs_format(uint32_t spa_format,
 
 	case SPA_VIDEO_FORMAT_BGRx:
 		*out_format = GS_BGRX;
+		*swap_red_blue = false;
+		break;
+
+	case SPA_VIDEO_FORMAT_YUY2:
+		*out_format = GS_BGRA;
 		*swap_red_blue = false;
 		break;
 
@@ -665,6 +674,27 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 fail:
 	obs_pipewire_destroy(obs_pw);
 	return NULL;
+}
+
+obs_pipewire_data *obs_pipewire_new_full(struct pw_core *core,
+					 struct pw_properties *stream_props,
+					 uint32_t node)
+{
+	obs_pipewire_data *obs_pw;
+
+	obs_pw = bzalloc(sizeof(obs_pipewire_data));
+
+	/* Stream */
+	obs_pw->stream = pw_stream_new(core, "OBS Studio", stream_props);
+	pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
+			       &stream_events, obs_pw);
+	blog(LOG_INFO, "[pipewire] created stream %p", obs_pw->stream);
+
+	connect_stream(obs_pw, node);
+
+	blog(LOG_INFO, "[pipewire] playing stream…");
+
+	return obs_pw;
 }
 
 /* obs_source_info methods */
