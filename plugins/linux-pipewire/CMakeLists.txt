@@ -31,11 +31,17 @@ add_definitions(
 set(linux-pipewire_SOURCES
 	linux-pipewire.c
 	pipewire-virtualcam.c
+	pipewire-webcam.c
+	pipewire-portal.c
+	pipewire-portal-camera.c
 	pipewire-common.c
 	loadhelper.c
 )
 set(linux-pipewire_HEADERS
 	pipewire-virtualcam.h
+	pipewire-webcam.h
+	pipewire-portal.h
+	pipewire-portal-camera.h
 	pipewire-common.h
 	loadhelper.h
 )

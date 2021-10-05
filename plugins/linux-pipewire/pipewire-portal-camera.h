@@ -1,4 +1,4 @@
-/* linux-pipewire.c
+/* pipewire-portal-camera.h
  *
  * Copyright 2021 columbarius <co1umbarius@protonmail.com>
  *
@@ -18,41 +18,37 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <obs/obs-module.h>
-#include <obs/obs-nix-platform.h>
+#pragma once
 
-#include "loadhelper.h"
+#include "portal.h"
 
-#include "pipewire-common.h"
-#include "pipewire-virtualcam.h"
-#include "pipewire-webcam.h"
+#include <gio/gio.h>
+#include <gio/gunixfdlist.h>
 
-OBS_DECLARE_MODULE()
+#include <stdbool.h>
 
-bool obs_module_load(void)
-{
-	obs_pipewire_load();
+struct obs_pipewire_portal_camera_data {
+	GCancellable *cancellable;
 
-	pipewire_camera_register_source();
+	enum portal_type type;
 
-	// Check if v4l2 virtual cam was loaded
-	if (loopback_module_available()) {
-		return true;
-	}
+	char *sender_name;
+	char *session_handle;
 
-	// OBS PipeWire Virtual Camera
-	obs_data_t *obs_settings = obs_data_create();
+	char *request_path_template;
+	char *session_path_template;
 
-	virtual_cam_register_output();
+	bool negotiated;
+	uint32_t pipewire_node;
+	int pipewire_fd;
 
-	obs_data_set_bool(obs_settings, "vcamEnabled", true);
-	obs_apply_private_data(obs_settings);
-	obs_data_release(obs_settings);
+	void (*play_stream)(void *);
+	void *data;
 
-	return true;
-}
+	bool camera_present;
+};
 
-void obs_module_unload(void)
-{
-	obs_pipewire_unload();
-}
+gboolean
+init_xdg_portal_camera(struct obs_pipewire_portal_camera_data *portal_handle);
+void close_xdg_portal_camera(
+	struct obs_pipewire_portal_camera_data *portal_handle);
