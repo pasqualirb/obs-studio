@@ -1,4 +1,4 @@
-/* linux-pipewire.c
+/* pipewire-virtualcam.h
  *
  * Copyright 2021 columbarius <co1umbarius@protonmail.com>
  *
@@ -18,30 +18,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include <obs-module.h>
-#include <obs-nix-platform.h>
+#pragma once
 
-#include "pipewire-common.h"
-#include "pipewire-virtualcam.h"
-
-OBS_DECLARE_MODULE()
-OBS_MODULE_USE_DEFAULT_LOCALE("linux-pipewire", "en-US")
-MODULE_EXPORT const char *obs_module_description(void)
-{
-	return "PipeWire based sources/outputs";
-}
-
-bool obs_module_load(void)
-{
-	obs_pipewire_load();
-
-	// OBS PipeWire Virtual Camera
-	virtual_cam_register_output();
-
-	return true;
-}
-
-void obs_module_unload(void)
-{
-	obs_pipewire_unload();
-}
+void virtual_cam_register_output(void);
