@@ -1822,12 +1822,17 @@ void OBSBasic::OBSInit()
 	cef = obs_browser_init_panel();
 #endif
 
-	obs_data_t *obsData = obs_get_private_data();
-	vcamEnabled = obs_data_get_bool(obsData, "vcamEnabled");
+#if defined(_WIN32) || defined(__APPLE__)
+	if (obs_get_output_flags("virtualcam_output") & OBS_OUTPUT_VIRTUALCAM)
+		vcamEnabled = true;
+#else
+	if (obs_get_output_flags("v4l2_output") & OBS_OUTPUT_VIRTUALCAM)
+		vcamEnabled = true;
+#endif
+
 	if (vcamEnabled) {
 		AddVCamButton();
 	}
-	obs_data_release(obsData);
 
 	InitBasicConfigDefaults2();
 
