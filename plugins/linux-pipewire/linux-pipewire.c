@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <obs-nix-platform.h>
 #include <pipewire/pipewire.h>
 
+#include "pipewire-camera.h"
 #include "pipewire-capture.h"
 
 OBS_DECLARE_MODULE()
@@ -36,6 +37,7 @@ bool obs_module_load(void)
 #endif
 	case OBS_NIX_PLATFORM_X11_EGL:
 		pw_init(NULL, NULL);
+		pipewire_camera_load();
 		pipewire_capture_load();
 		break;
 

@@ -33,12 +33,14 @@ set(linux-pipewire_SOURCES
 	linux-pipewire.c
 	pipewire.c
 	pipewire-capture.c
+	pipewire-camera.c
 	portal.c
 )
 set(linux-pipewire_HEADERS
 	dbus-requests.h
 	pipewire.h
 	pipewire-capture.h
+	pipewire-camera.h
 	portal.h
 )
 
