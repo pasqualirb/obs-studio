@@ -214,7 +214,8 @@ static void stream_camera(struct obs_pipewire_camera *pw_camera,
 						  PW_KEY_MEDIA_CATEGORY,
 						  "Capture", PW_KEY_MEDIA_ROLE,
 						  "Camera", NULL),
-				camera->id);
+				camera->id, IMPORT_API_MEDIA,
+				pw_camera->source);
 			return;
 		}
 	}
@@ -684,6 +685,7 @@ static uint32_t pipewire_camera_get_height(void *data)
 		return 0;
 }
 
+/*
 static void pipewire_camera_video_render(void *data, gs_effect_t *effect)
 {
 	struct obs_pipewire_camera *pw_camera = data;
@@ -691,13 +693,15 @@ static void pipewire_camera_video_render(void *data, gs_effect_t *effect)
 	if (pw_camera->obs_pw)
 		obs_pipewire_video_render(pw_camera->obs_pw, effect);
 }
+*/
 
 void pipewire_camera_load(void)
 {
 	const struct obs_source_info pipewire_camera_info = {
 		.id = "pipewire-camera-source",
 		.type = OBS_SOURCE_TYPE_INPUT,
-		.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_DO_NOT_DUPLICATE,
+		.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC |
+				OBS_SOURCE_DO_NOT_DUPLICATE,
 		.get_name = pipewire_camera_get_name,
 		.create = pipewire_camera_create,
 		.destroy = pipewire_camera_destroy,
@@ -708,7 +712,7 @@ void pipewire_camera_load(void)
 		.hide = pipewire_camera_hide,
 		.get_width = pipewire_camera_get_width,
 		.get_height = pipewire_camera_get_height,
-		.video_render = pipewire_camera_video_render,
+		//.video_render = pipewire_camera_video_render,
 		.icon_type = OBS_ICON_TYPE_CAMERA,
 	};
 	obs_register_source(&pipewire_camera_info);
