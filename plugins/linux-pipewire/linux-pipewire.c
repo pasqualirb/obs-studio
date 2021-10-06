@@ -24,6 +24,7 @@
 
 #include "pipewire-common.h"
 #include "pipewire-virtualcam.h"
+#include "pipewire-camera.h"
 #include "pipewire-capture.h"
 
 OBS_DECLARE_MODULE()
@@ -39,6 +40,9 @@ bool obs_module_load(void)
 
 	// OBS PipeWire Virtual Camera
 	virtual_cam_register_output();
+
+	// OBS PipeWire Camera
+	pipewire_camera_load();
 
 	// OBS PipeWire Screen Capture
 	switch (obs_get_nix_platform()) {

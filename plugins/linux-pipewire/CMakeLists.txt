@@ -37,6 +37,7 @@ set(linux-pipewire_SOURCES
 	pipewire-common.c
 	pipewire-input.c
 	pipewire-capture.c
+	pipewire-camera.c
 	pipewire-portal-screencast.c
 	pipewire-portal-camera.c
 	pipewire-portal.c
@@ -48,6 +49,7 @@ set(linux-pipewire_HEADERS
 	pipewire-common.h
 	pipewire-input.h
 	pipewire-capture.h
+	pipewire-camera.h
 	pipewire-portal-screencast.h
 	pipewire-portal-camera.h
 	pipewire-portal.h
