@@ -25,11 +25,14 @@
 
 typedef struct _obs_pipewire_data obs_pipewire_data;
 
+enum import_type { IMPORT_API_TEXTURE, IMPORT_API_MEDIA };
+
 obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node);
 
 obs_pipewire_data *obs_pipewire_new_full(struct pw_core *core,
 					 struct pw_properties *stream_props,
-					 uint32_t node);
+					 uint32_t node, enum import_type type,
+					 obs_source_t *source);
 
 void obs_pipewire_set_show_cursor(obs_pipewire_data *obs_pw, bool show_cursor);
 

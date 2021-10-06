@@ -49,6 +49,8 @@ struct _obs_pipewire_data {
 
 	gs_texture_t *texture;
 
+	obs_source_t *source;
+
 	struct pw_thread_loop *thread_loop;
 	struct pw_context *context;
 
@@ -196,6 +198,61 @@ static void swap_texture_red_blue(gs_texture_t *texture)
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+static enum video_colorspace
+get_colorspace_from_spa_color_matrix(enum spa_video_color_matrix matrix)
+{
+	switch (matrix) {
+	case SPA_VIDEO_COLOR_MATRIX_RGB:
+		return VIDEO_CS_DEFAULT;
+	case SPA_VIDEO_COLOR_MATRIX_BT601:
+		return VIDEO_CS_601;
+	case SPA_VIDEO_COLOR_MATRIX_BT709:
+		return VIDEO_CS_709;
+	default:
+		return VIDEO_CS_DEFAULT;
+	}
+}
+
+static enum video_range_type
+get_colorrange_from_spa_color_range(enum spa_video_color_range colorrange)
+{
+	switch (colorrange) {
+	case SPA_VIDEO_COLOR_RANGE_0_255:
+		return VIDEO_RANGE_FULL;
+	case SPA_VIDEO_COLOR_RANGE_16_235:
+		return VIDEO_RANGE_PARTIAL;
+	default:
+		return VIDEO_RANGE_DEFAULT;
+	}
+}
+
+static bool prepare_obs_frame(obs_pipewire_data *obs_pw,
+			      struct obs_source_frame *frame)
+{
+	frame->width = obs_pw->format.info.raw.size.width;
+	frame->height = obs_pw->format.info.raw.size.height;
+	video_format_get_parameters(
+		get_colorspace_from_spa_color_matrix(
+			obs_pw->format.info.raw.color_matrix),
+		get_colorrange_from_spa_color_range(
+			obs_pw->format.info.raw.color_range),
+		frame->color_matrix, frame->color_range_min,
+		frame->color_range_max);
+	switch (obs_pw->format.info.raw.format) {
+	case SPA_VIDEO_FORMAT_RGBA:
+		frame->format = VIDEO_FORMAT_RGBA;
+		frame->linesize[0] = frame->width;
+		break;
+	case SPA_VIDEO_FORMAT_YUY2:
+		frame->format = VIDEO_FORMAT_YUY2;
+		frame->linesize[0] = frame->width;
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 static inline struct spa_pod *build_format(struct spa_pod_builder *b,
 					   struct obs_video_info *ovi,
 					   uint32_t format, uint64_t *modifiers,
@@ -278,7 +335,8 @@ static uint32_t build_format_params(obs_pipewire_data *obs_pw,
 	return n_params;
 }
 
-static uint32_t create_modifier_info(struct modifier_info **modifier_info)
+static uint32_t
+create_modifier_info_texture(struct modifier_info **modifier_info)
 {
 	uint32_t formats[] = {
 		SPA_VIDEO_FORMAT_BGRA,
@@ -304,6 +362,28 @@ static uint32_t create_modifier_info(struct modifier_info **modifier_info)
 	return n_formats;
 }
 
+static uint32_t create_modifier_info_media(struct modifier_info **modifier_info)
+{
+	uint32_t formats[] = {
+		SPA_VIDEO_FORMAT_RGBA,
+		SPA_VIDEO_FORMAT_YUY2,
+	};
+
+	int32_t n_formats = sizeof(formats) / sizeof(formats[0]);
+
+	struct modifier_info *info =
+		bzalloc(n_formats * sizeof(struct modifier_info));
+	for (int i = 0; i < n_formats; i++) {
+		info[i].spa_format = formats[i];
+		spa_pixel_format_to_drm_format(formats[i], &info[i].drm_format);
+		info[i].n_modifiers = 0;
+		info[i].modifiers = NULL;
+	}
+
+	*modifier_info = info;
+	return n_formats;
+}
+
 static void destroy_modifier_info(int32_t n_formats,
 				  struct modifier_info *modifier_info)
 {
@@ -314,9 +394,49 @@ static void destroy_modifier_info(int32_t n_formats,
 	}
 	bfree(modifier_info);
 }
+
 /* ------------------------------------------------- */
 
-static void on_process_cb(void *user_data)
+static void on_process_media_cb(void *user_data)
+{
+	obs_pipewire_data *obs_pw = user_data;
+	struct spa_buffer *buffer;
+	struct pw_buffer *b;
+	struct spa_data *d;
+	struct obs_source_frame out = {0};
+
+	/* Find the most recent buffer */
+	b = NULL;
+	while (true) {
+		struct pw_buffer *aux =
+			pw_stream_dequeue_buffer(obs_pw->stream);
+		if (!aux)
+			break;
+		if (b)
+			pw_stream_queue_buffer(obs_pw->stream, b);
+		b = aux;
+	}
+
+	if (!b) {
+		blog(LOG_DEBUG, "[pipewire] Out of buffers!");
+		return;
+	}
+
+	buffer = b->buffer;
+	d = buffer->datas;
+
+	prepare_obs_frame(obs_pw, &out);
+	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
+	     i++) {
+		out.data[i] = d[i].data;
+	}
+
+	obs_source_output_video(obs_pw->source, &out);
+
+	pw_stream_queue_buffer(obs_pw->stream, b);
+}
+
+static void on_process_texture_cb(void *user_data)
 {
 	obs_pipewire_data *obs_pw = user_data;
 	struct spa_meta_cursor *cursor;
@@ -561,11 +681,18 @@ static void on_state_changed_cb(void *user_data, enum pw_stream_state old,
 	     error ? error : "none");
 }
 
-static const struct pw_stream_events stream_events = {
+static const struct pw_stream_events stream_events_media = {
 	PW_VERSION_STREAM_EVENTS,
 	.state_changed = on_state_changed_cb,
 	.param_changed = on_param_changed_cb,
-	.process = on_process_cb,
+	.process = on_process_media_cb,
+};
+
+static const struct pw_stream_events stream_events_texture = {
+	PW_VERSION_STREAM_EVENTS,
+	.state_changed = on_state_changed_cb,
+	.param_changed = on_param_changed_cb,
+	.process = on_process_texture_cb,
 };
 
 static void on_core_error_cb(void *user_data, uint32_t id, int seq, int res,
@@ -628,7 +755,8 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 
 	obs_pw = bzalloc(sizeof(obs_pipewire_data));
 	obs_pw->pipewire_fd = fd;
-	obs_pw->n_formats = create_modifier_info(&obs_pw->modifier_info);
+	obs_pw->n_formats =
+		create_modifier_info_texture(&obs_pw->modifier_info);
 	obs_pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
 	obs_pw->context = pw_context_new(
 		pw_thread_loop_get_loop(obs_pw->thread_loop), NULL, 0);
@@ -660,7 +788,7 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 				  PW_KEY_MEDIA_CATEGORY, "Capture",
 				  PW_KEY_MEDIA_ROLE, "Screen", NULL));
 	pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
-			       &stream_events, obs_pw);
+			       &stream_events_texture, obs_pw);
 	blog(LOG_INFO, "[pipewire] created stream %p", obs_pw->stream);
 
 	connect_stream(obs_pw, node);
@@ -678,16 +806,38 @@ fail:
 
 obs_pipewire_data *obs_pipewire_new_full(struct pw_core *core,
 					 struct pw_properties *stream_props,
-					 uint32_t node)
+					 uint32_t node, enum import_type type,
+					 obs_source_t *source)
 {
 	obs_pipewire_data *obs_pw;
 
 	obs_pw = bzalloc(sizeof(obs_pipewire_data));
 
+	obs_pw->source = source;
+
+	switch (type) {
+	case IMPORT_API_TEXTURE:
+		obs_pw->n_formats =
+			create_modifier_info_texture(&obs_pw->modifier_info);
+		break;
+	case IMPORT_API_MEDIA:
+		obs_pw->n_formats =
+			create_modifier_info_media(&obs_pw->modifier_info);
+		break;
+	}
+
 	/* Stream */
 	obs_pw->stream = pw_stream_new(core, "OBS Studio", stream_props);
-	pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
-			       &stream_events, obs_pw);
+	switch (type) {
+	case IMPORT_API_TEXTURE:
+		pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
+				       &stream_events_texture, obs_pw);
+		break;
+	case IMPORT_API_MEDIA:
+		pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
+				       &stream_events_media, obs_pw);
+		break;
+	}
 	blog(LOG_INFO, "[pipewire] created stream %p", obs_pw->stream);
 
 	connect_stream(obs_pw, node);
