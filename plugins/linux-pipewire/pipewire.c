@@ -403,19 +403,33 @@ static void destroy_modifier_info(int32_t n_formats,
 static void strip_modifier(obs_pipewire_data *obs_pw, uint32_t spa_format,
 			   uint64_t modifier)
 {
+	blog(LOG_DEBUG, "[pipewire] Striping modifier %lu", modifier);
 	for (int i = 0; i < obs_pw->n_formats; i++) {
 		if (obs_pw->modifier_info[i].spa_format != spa_format)
 			continue;
 
+		blog(LOG_DEBUG, "[pipewire] Format found: %u",
+		     obs_pw->modifier_info[i].spa_format);
+		blog(LOG_DEBUG, "[pipewire] Removing modifier: %lu", modifier);
+		blog(LOG_DEBUG, "[pipewire] Modifiers available: %u",
+		     obs_pw->modifier_info[i].n_modifiers);
 		uint32_t k = 0;
 		for (int32_t j = 0; j < obs_pw->modifier_info[i].n_modifiers;
 		     j++) {
-			if (obs_pw->modifier_info[i].modifiers[j] == modifier)
+			if (obs_pw->modifier_info[i].modifiers[j] == modifier) {
+				blog(LOG_DEBUG,
+				     "[pipewire] Modifier found: %lu (%u)",
+				     obs_pw->modifier_info[i].modifiers[j], j);
 				continue;
+			}
+			blog(LOG_DEBUG,
+			     "[pipewire] Modifier to move: %lu (%u -> %u)",
+			     obs_pw->modifier_info[i].modifiers[j], j, k);
 			obs_pw->modifier_info[i].modifiers[k++] =
 				obs_pw->modifier_info[i].modifiers[j];
 		}
 
+		blog(LOG_DEBUG, "[pipewire] Modifiers left: %u", k);
 		if (k > 0) {
 			obs_pw->modifier_info[i].n_modifiers = k;
 			brealloc(obs_pw->modifier_info[i].modifiers,
@@ -442,6 +456,13 @@ static void renegotiate_format(void *data, uint64_t expirations)
 	struct spa_pod_builder pod_builder =
 		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
 	uint32_t n_params = build_format_params(obs_pw, &pod_builder, &params);
+
+	blog(LOG_DEBUG, "[pipewire] Renegotiating stream ...");
+
+	blog(LOG_INFO, "[pipewire] announce params");
+	for (uint32_t i = 0; i < n_params; i++) {
+		spa_debug_format(4, NULL, params[i]);
+	}
 
 	pw_stream_update_params(obs_pw->stream, params, n_params);
 	pw_thread_loop_unlock(obs_pw->thread_loop);
@@ -486,9 +507,9 @@ static void on_process_media_cb(void *user_data)
 		if (d[i].type == SPA_DATA_DmaBuf) {
 			blog(LOG_DEBUG, "[pipewire] mmapping dmabuf");
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_START);
-			out.data[i] = mmap(NULL, d[i].maxsize + d[i].mapoffset, PROT_READ,
-					    MAP_PRIVATE, d[i].fd,
-					    d[i].mapoffset);
+			out.data[i] = mmap(NULL, d[i].maxsize + d[i].mapoffset,
+					   PROT_READ, MAP_PRIVATE, d[i].fd,
+					   d[i].mapoffset);
 		} else {
 			out.data[i] = d[i].data;
 		}
@@ -750,6 +771,8 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 	     obs_pw->format.info.raw.framerate.num,
 	     obs_pw->format.info.raw.framerate.denom);
 
+	spa_debug_format(4, NULL, param);
+
 	/* Video crop */
 	pod_builder =
 		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
@@ -851,6 +874,11 @@ static void connect_stream(obs_pipewire_data *obs_pw, uint32_t node)
 	obs_pw->video_info = ovi;
 
 	n_params = build_format_params(obs_pw, &pod_builder, &params);
+
+	blog(LOG_INFO, "[pipewire] announce params");
+	for (uint32_t i = 0; i < n_params; i++) {
+		spa_debug_format(4, NULL, params[i]);
+	}
 
 	pw_stream_connect(obs_pw->stream, PW_DIRECTION_INPUT, node,
 			  PW_STREAM_FLAG_AUTOCONNECT |
