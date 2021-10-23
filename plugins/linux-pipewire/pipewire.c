@@ -486,6 +486,9 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 	if (result < 0)
 		return;
 
+	if (!spa_pod_is_fixated(param))
+		return;
+
 	if (obs_pw->format.media_type != SPA_MEDIA_TYPE_video ||
 	    obs_pw->format.media_subtype != SPA_MEDIA_SUBTYPE_raw)
 		return;
