@@ -81,6 +81,8 @@ struct _obs_pipewire_data {
 
 	int n_formats;
 	struct modifier_info *modifier_info;
+
+	enum import_type import_type;
 };
 
 /* auxiliary methods */
@@ -425,6 +427,8 @@ static void on_process_media_cb(void *user_data)
 	buffer = b->buffer;
 	d = buffer->datas;
 
+	blog(LOG_DEBUG, "[pipewire] buffertype: %u", d[0].type);
+
 	prepare_obs_frame(obs_pw, &out);
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
@@ -616,6 +620,7 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 	const struct spa_pod *params[3];
 	uint8_t params_buffer[1024];
 	int result;
+	int buffertypes = (1 << SPA_DATA_MemPtr);
 
 	if (!param || id != SPA_PARAM_Format)
 		return;
@@ -633,6 +638,17 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 		return;
 
 	spa_format_video_raw_parse(param, &obs_pw->format.info.raw);
+
+	if (spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) == NULL) {
+		if (obs_pw->import_type == IMPORT_API_MEDIA) {
+			// webcam DMABUFs are mmappable
+			//buffertypes |= (1 << SPA_DATA_DmaBuf);
+		}
+	} else {
+		if (obs_pw->import_type == IMPORT_API_TEXTURE) {
+			buffertypes |= (1 << SPA_DATA_DmaBuf);
+		}
+	}
 
 	blog(LOG_DEBUG, "[pipewire] Negotiated format:");
 
@@ -670,8 +686,7 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 	/* Buffer options */
 	params[2] = spa_pod_builder_add_object(
 		&pod_builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
-		SPA_PARAM_BUFFERS_dataType,
-		SPA_POD_Int((1 << SPA_DATA_MemPtr) | (1 << SPA_DATA_DmaBuf)));
+		SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(buffertypes));
 
 	pw_stream_update_params(obs_pw->stream, params, 3);
 
@@ -824,6 +839,8 @@ obs_pipewire_data *obs_pipewire_new_full(struct pw_core *core,
 	obs_pw = bzalloc(sizeof(obs_pipewire_data));
 
 	obs_pw->source = source;
+
+	obs_pw->import_type = type;
 
 	switch (type) {
 	case IMPORT_API_TEXTURE:
