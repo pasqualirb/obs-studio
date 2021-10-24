@@ -434,11 +434,11 @@ static void on_process_media_cb(void *user_data)
 	prepare_obs_frame(obs_pw, &out);
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
-		if (d[i].data == SPA_DATA_DmaBuf) {
+		if (d[i].type == SPA_DATA_DmaBuf) {
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_START);
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_READ);
-			d[i].data == mmap(NULL, d[i].maxsize, PROT_READ,
-					  MAP_SHARED, d[i].mapoffset);
+			out.data[i] == mmap(NULL, d[i].maxsize, PROT_READ,
+					  MAP_SHARED, d[i].fd,d[i].mapoffset);
 		} else {
 			out.data[i] = d[i].data;
 		}
@@ -458,8 +458,8 @@ static void on_process_media_cb(void *user_data)
 
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
-		if (d[i].data == SPA_DATA_DmaBuf) {
-			munmap(out[i].data, d[i].maxsize);
+		if (d[i].type == SPA_DATA_DmaBuf) {
+			munmap(out.data[i], d[i].maxsize);
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_END);
 		}
 	}
