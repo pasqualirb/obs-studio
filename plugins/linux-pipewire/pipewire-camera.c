@@ -244,7 +244,13 @@ static void on_node_param_cb(void *user_data, int seq, uint32_t id,
 			     uint32_t index, uint32_t next,
 			     const struct spa_pod *param)
 {
-	struct camera_object *camera = user_data;
+	UNUSED_PARAMETER(user_data);
+	UNUSED_PARAMETER(seq);
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(index);
+	UNUSED_PARAMETER(next);
+	UNUSED_PARAMETER(param);
+	//struct camera_object *camera = user_data;
 	//add_param(&camera->pending_list, id, param);
 }
 
@@ -584,6 +590,8 @@ static void populate_cameras_list(struct obs_pipewire_camera *pw_camera,
 static bool device_selected(void *data, obs_properties_t *props,
 			    obs_property_t *p, obs_data_t *settings)
 {
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(p);
 	struct obs_pipewire_camera *pw_camera = data;
 	const char *device;
 
@@ -626,7 +634,10 @@ static void pipewire_camera_destroy(void *data)
 	obs_pipewire_camera_free(data);
 }
 
-static void pipewire_camera_get_defaults(obs_data_t *settings) {}
+static void pipewire_camera_get_defaults(obs_data_t *settings)
+{
+	UNUSED_PARAMETER(settings);
+}
 
 static obs_properties_t *pipewire_camera_get_properties(void *data)
 {
@@ -647,7 +658,11 @@ static obs_properties_t *pipewire_camera_get_properties(void *data)
 	return properties;
 }
 
-static void pipewire_camera_update(void *data, obs_data_t *settings) {}
+static void pipewire_camera_update(void *data, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(settings);
+}
 
 static void pipewire_camera_show(void *data)
 {
