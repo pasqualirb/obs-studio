@@ -431,6 +431,16 @@ static void on_process_media_cb(void *user_data)
 		out.data[i] = d[i].data;
 	}
 
+	blog(LOG_DEBUG, "[pipewire] Camera frame info:");
+	blog(LOG_DEBUG, "[pipewire] format: %s",
+	     get_video_format_name(out.format));
+	blog(LOG_DEBUG, "[pipewire] planes: %u", buffer->n_datas);
+	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
+	     i++) {
+		blog(LOG_DEBUG, "[pipewire] dataptr: %p", out.data[i]);
+		blog(LOG_DEBUG, "[pipewire] linesize: %d", out.linesize[i]);
+	}
+
 	obs_source_output_video(obs_pw->source, &out);
 
 	pw_stream_queue_buffer(obs_pw->stream, b);
