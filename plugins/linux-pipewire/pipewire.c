@@ -435,10 +435,11 @@ static void on_process_media_cb(void *user_data)
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
 		if (d[i].type == SPA_DATA_DmaBuf) {
+			blog(LOG_DEBUG, "[pipewire] mmapping dmabuf");
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_START);
-			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_READ);
 			out.data[i] == mmap(NULL, d[i].maxsize, PROT_READ,
-					  MAP_SHARED, d[i].fd,d[i].mapoffset);
+					    MAP_SHARED, d[i].fd,
+					    d[i].mapoffset);
 		} else {
 			out.data[i] = d[i].data;
 		}
