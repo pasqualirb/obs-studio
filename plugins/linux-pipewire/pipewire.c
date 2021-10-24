@@ -437,11 +437,15 @@ static void on_process_media_cb(void *user_data)
 		if (d[i].type == SPA_DATA_DmaBuf) {
 			blog(LOG_DEBUG, "[pipewire] mmapping dmabuf");
 			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_START);
-			out.data[i] == mmap(NULL, d[i].maxsize, PROT_READ,
-					    MAP_SHARED, d[i].fd,
+			out.data[i] = mmap(NULL, d[i].maxsize + d[i].mapoffset, PROT_READ,
+					    MAP_PRIVATE, d[i].fd,
 					    d[i].mapoffset);
 		} else {
 			out.data[i] = d[i].data;
+		}
+		if (out.data[i] == NULL) {
+			blog(LOG_DEBUG, "[pipewire] failed to access data");
+			goto done;
 		}
 	}
 
@@ -457,6 +461,7 @@ static void on_process_media_cb(void *user_data)
 
 	obs_source_output_video(obs_pw->source, &out);
 
+done:
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
 		if (d[i].type == SPA_DATA_DmaBuf) {
