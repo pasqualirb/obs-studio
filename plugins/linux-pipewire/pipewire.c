@@ -19,11 +19,13 @@
  */
 
 #include "pipewire.h"
+#include "utils.h"
 
 #include <libdrm/drm_fourcc.h>
 #include <fcntl.h>
 #include <glad/glad.h>
 #include <linux/dma-buf.h>
+#include <sys/mman.h>
 #include <libdrm/drm_fourcc.h>
 #include <spa/param/video/format-utils.h>
 #include <spa/debug/format.h>
