@@ -432,7 +432,14 @@ static void on_process_media_cb(void *user_data)
 	prepare_obs_frame(obs_pw, &out);
 	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
 	     i++) {
-		out.data[i] = d[i].data;
+		if (d[i].data == SPA_DATA_DmaBuf) {
+			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_START);
+			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_READ);
+			d[i].data == mmap(NULL, d[i].maxsize, PROT_READ,
+					  MAP_SHARED, d[i].mapoffset);
+		} else {
+			out.data[i] = d[i].data;
+		}
 	}
 
 	blog(LOG_DEBUG, "[pipewire] Camera frame info:");
@@ -446,6 +453,14 @@ static void on_process_media_cb(void *user_data)
 	}
 
 	obs_source_output_video(obs_pw->source, &out);
+
+	for (unsigned int i = 0; i < buffer->n_datas && i < MAX_AV_PLANES;
+	     i++) {
+		if (d[i].data == SPA_DATA_DmaBuf) {
+			munmap(out[i].data, d[i].maxsize);
+			sync_dma_buf(d[i].fd, DMA_BUF_SYNC_END);
+		}
+	}
 
 	pw_stream_queue_buffer(obs_pw->stream, b);
 }
@@ -620,6 +635,7 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 	const struct spa_pod *params[3];
 	uint8_t params_buffer[1024];
 	int result;
+	bool has_modifier;
 	int buffertypes = (1 << SPA_DATA_MemPtr);
 
 	if (!param || id != SPA_PARAM_Format)
@@ -639,15 +655,14 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 
 	spa_format_video_raw_parse(param, &obs_pw->format.info.raw);
 
-	if (spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) == NULL) {
-		if (obs_pw->import_type == IMPORT_API_MEDIA) {
-			// webcam DMABUFs are mmappable
-			//buffertypes |= (1 << SPA_DATA_DmaBuf);
-		}
-	} else {
-		if (obs_pw->import_type == IMPORT_API_TEXTURE) {
-			buffertypes |= (1 << SPA_DATA_DmaBuf);
-		}
+	has_modifier = spa_pod_find_prop(param, NULL,
+					 SPA_FORMAT_VIDEO_modifier) != NULL;
+
+	// While DMABUFs on the GPU as used by screensharing is only valid with modifier
+	// DMABUFs from webcams don't have any modifiers and can be mmapped
+	if ((has_modifier && obs_pw->import_type == IMPORT_API_TEXTURE) ||
+	    (!has_modifier && obs_pw->import_type == IMPORT_API_MEDIA)) {
+		buffertypes |= (1 << SPA_DATA_DmaBuf);
 	}
 
 	blog(LOG_DEBUG, "[pipewire] Negotiated format:");
