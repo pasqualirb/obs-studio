@@ -193,6 +193,9 @@ static void stream_camera(struct obs_pipewire_camera *pw_camera,
 {
 	struct camera_object *camera;
 
+	if (camera_card == NULL)
+		return;
+
 	blog(LOG_INFO, "Streaming %s", camera_card);
 
 	spa_list_for_each(camera, &pw_camera->cameras, link)
