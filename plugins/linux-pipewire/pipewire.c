@@ -241,11 +241,11 @@ static bool prepare_obs_frame(obs_pipewire_data *obs_pw,
 	switch (obs_pw->format.info.raw.format) {
 	case SPA_VIDEO_FORMAT_RGBA:
 		frame->format = VIDEO_FORMAT_RGBA;
-		frame->linesize[0] = frame->width;
+		frame->linesize[0] = SPA_ROUND_UP_N(frame->width * 4, 4);
 		break;
 	case SPA_VIDEO_FORMAT_YUY2:
 		frame->format = VIDEO_FORMAT_YUY2;
-		frame->linesize[0] = frame->width;
+		frame->linesize[0] = SPA_ROUND_UP_N(frame->width * 2, 4);
 		break;
 	default:
 		return false;
