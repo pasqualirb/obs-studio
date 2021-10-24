@@ -40,6 +40,7 @@ set(linux-pipewire_SOURCES
 	pipewire-camera.c
 	portal.c
 	dbus-requests.c
+	utils.c
 )
 set(linux-pipewire_HEADERS
 	pipewire-virtualcam.h
@@ -49,6 +50,7 @@ set(linux-pipewire_HEADERS
 	pipewire-camera.h
 	portal.h
 	dbus-requests.h
+	utils.h
 )
 
 set(linux-pipewire_LIBRARIES
