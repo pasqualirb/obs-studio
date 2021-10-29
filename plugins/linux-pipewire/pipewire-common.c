@@ -189,8 +189,10 @@ bool obs_pw_start_loop(struct obs_pw_core *pw_core)
 
 bool obs_pw_stop_loop(struct obs_pw_core *pw_core)
 {
-	pw_thread_loop_wait(pw_core->thread_loop);
-	pw_thread_loop_stop(pw_core->thread_loop);
+	if (pw_core->thread_loop) {
+		pw_thread_loop_wait(pw_core->thread_loop);
+		pw_thread_loop_stop(pw_core->thread_loop);
+	}
 	return true;
 }
 
@@ -206,6 +208,7 @@ bool obs_pw_create_loop(struct obs_pw_core *pw_core, char *name)
 bool obs_pw_destroy_loop(struct obs_pw_core *pw_core)
 {
 	pw_thread_loop_destroy(pw_core->thread_loop);
+	pw_core->thread_loop = NULL;
 	return true;
 }
 
@@ -248,7 +251,8 @@ error:
 
 bool obs_pw_destroy_stream(struct obs_pw_stream *pw_stream)
 {
-	pw_stream_disconnect(pw_stream->stream);
+	if (pw_stream->stream)
+		pw_stream_disconnect(pw_stream->stream);
 	pw_stream_destroy(pw_stream->stream);
 	pw_stream->stream = NULL;
 	pw_stream->pw_stream_state = false;
