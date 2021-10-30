@@ -155,6 +155,10 @@ static bool spa_pixel_format_to_drm_format(uint32_t spa_format,
 		*out_format = DRM_FORMAT_XRGB8888;
 		break;
 
+	case SPA_VIDEO_FORMAT_YUY2:
+		*out_format = DRM_FORMAT_YUYV;
+		break;
+
 	default:
 		return false;
 	}
@@ -184,6 +188,11 @@ static bool spa_pixel_format_to_obs_format(uint32_t spa_format,
 
 	case SPA_VIDEO_FORMAT_BGRx:
 		*out_format = GS_BGRX;
+		*swap_red_blue = false;
+		break;
+
+	case SPA_VIDEO_FORMAT_YUY2:
+		*out_format = GS_BGRA;
 		*swap_red_blue = false;
 		break;
 
@@ -303,6 +312,10 @@ static bool prepare_obs_frame(obs_pipewire_data *obs_pw,
 		frame->format = VIDEO_FORMAT_RGBA;
 		frame->linesize[0] = SPA_ROUND_UP_N(frame->width * 4, 4);
 		break;
+	case SPA_VIDEO_FORMAT_YUY2:
+		frame->format = VIDEO_FORMAT_YUY2;
+		frame->linesize[0] = SPA_ROUND_UP_N(frame->width * 2, 4);
+		break;
 	default:
 		return false;
 	}
@@ -367,6 +380,7 @@ static uint32_t create_modifier_info_media(struct modifier_info **modifier_info)
 {
 	uint32_t formats[] = {
 		SPA_VIDEO_FORMAT_RGBA,
+		SPA_VIDEO_FORMAT_YUY2,
 	};
 
 	int32_t n_formats = sizeof(formats) / sizeof(formats[0]);
