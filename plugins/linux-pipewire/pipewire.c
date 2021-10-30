@@ -629,35 +629,6 @@ static const struct pw_stream_events stream_events = {
 	.process = on_process_cb,
 };
 
-static void on_core_error_cb(void *user_data, uint32_t id, int seq, int res,
-			     const char *message)
-{
-	UNUSED_PARAMETER(seq);
-
-	obs_pipewire_data *obs_pw = user_data;
-
-	blog(LOG_ERROR, "[pipewire] Error id:%u seq:%d res:%d (%s): %s", id,
-	     seq, res, g_strerror(res), message);
-
-	pw_thread_loop_signal(obs_pw->pw_core.thread_loop, FALSE);
-}
-
-static void on_core_done_cb(void *user_data, uint32_t id, int seq)
-{
-	UNUSED_PARAMETER(seq);
-
-	obs_pipewire_data *obs_pw = user_data;
-
-	if (id == PW_ID_CORE)
-		pw_thread_loop_signal(obs_pw->pw_core.thread_loop, FALSE);
-}
-
-static const struct pw_core_events core_events = {
-	PW_VERSION_CORE_EVENTS,
-	.done = on_core_done_cb,
-	.error = on_core_error_cb,
-};
-
 obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 {
 	obs_pipewire_data *obs_pw;
@@ -685,7 +656,7 @@ obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 		goto fail;
 	}
 	if (!obs_pw_create_context(&obs_pw->pw_core, obs_pw->pipewire_fd,
-				   &core_events, obs_pw)) {
+				   NULL, NULL)) {
 		blog(LOG_WARNING, "[pipewire]: failed to create context");
 		goto fail;
 	}
