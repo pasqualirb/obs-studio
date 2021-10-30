@@ -30,6 +30,7 @@ struct obs_pipewire_capture {
 	struct obs_pipewire_portal_screencast_data portal_handle;
 	obs_pipewire_data *obs_pw;
 	bool show_cursor;
+	obs_source_t *obs_source;
 };
 
 static void play_pipewire_stream(void *data)
@@ -39,7 +40,9 @@ static void play_pipewire_stream(void *data)
 
 	pw_capture->obs_pw = obs_pipewire_new_for_node(
 		pw_capture->portal_handle.pipewire_fd,
-		pw_capture->portal_handle.pipewire_node);
+		pw_capture->portal_handle.pipewire_node,
+		IMPORT_API_TEXTURE,
+		pw_capture->obs_source);
 	obs_pipewire_set_show_cursor(pw_capture->obs_pw,
 				     pw_capture->show_cursor);
 }
@@ -101,12 +104,12 @@ static const char *pipewire_window_capture_get_name(void *data)
 static void *pipewire_desktop_capture_create(obs_data_t *settings,
 					     obs_source_t *source)
 {
-	UNUSED_PARAMETER(source);
 	struct obs_pipewire_capture *pw_capture;
 
 	pw_capture = bzalloc(sizeof(struct obs_pipewire_capture));
 	pw_capture->capture_type = DESKTOP_CAPTURE;
 	pw_capture->show_cursor = obs_data_get_bool(settings, "ShowCursor");
+	pw_capture->obs_source = source;
 
 	if (!init_pipewire_capture(pw_capture)) {
 		destroy_pipewire_capture(pw_capture);
@@ -118,12 +121,12 @@ static void *pipewire_desktop_capture_create(obs_data_t *settings,
 static void *pipewire_window_capture_create(obs_data_t *settings,
 					    obs_source_t *source)
 {
-	UNUSED_PARAMETER(source);
 	struct obs_pipewire_capture *pw_capture;
 
 	pw_capture = bzalloc(sizeof(struct obs_pipewire_capture));
 	pw_capture->capture_type = WINDOW_CAPTURE;
 	pw_capture->show_cursor = obs_data_get_bool(settings, "ShowCursor");
+	pw_capture->obs_source = source;
 
 	if (!init_pipewire_capture(pw_capture)) {
 		destroy_pipewire_capture(pw_capture);
