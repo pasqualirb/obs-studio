@@ -19,7 +19,7 @@
  */
 
 #include "pipewire-capture.h"
-#include "pipewire.h"
+#include "pipewire-input.h"
 #include "pipewire-portal-screencast.h"
 #include "portal.h"
 

@@ -1,4 +1,4 @@
-/* pipewire.h
+/* pipewire-input.h
  *
  * Copyright 2020 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *

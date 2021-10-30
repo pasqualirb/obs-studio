@@ -35,7 +35,7 @@ set(linux-pipewire_SOURCES
 	linux-pipewire.c
 	pipewire-virtualcam.c
 	pipewire-common.c
-	pipewire.c
+	pipewire-input.c
 	pipewire-capture.c
 	pipewire-portal-screencast.c
 	pipewire-portal.c
@@ -45,7 +45,7 @@ set(linux-pipewire_SOURCES
 set(linux-pipewire_HEADERS
 	pipewire-virtualcam.h
 	pipewire-common.h
-	pipewire.h
+	pipewire-input.h
 	pipewire-capture.h
 	pipewire-portal-screencast.h
 	pipewire-portal.h

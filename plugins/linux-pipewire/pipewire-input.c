@@ -1,4 +1,4 @@
-/* pipewire.c
+/* pipewire-input.c
  *
  * Copyright 2020 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *
@@ -18,7 +18,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "pipewire.h"
+#include "pipewire-input.h"
 #include "pipewire-common.h"
 
 #include <libdrm/drm_fourcc.h>
