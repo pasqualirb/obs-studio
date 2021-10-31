@@ -19,16 +19,19 @@
  */
 
 #include "portal.h"
-#include "pipewire.h"
 
-static GDBusConnection *connection = NULL;
-static GDBusProxy *proxy = NULL;
+#include <obs/util/base.h>
 
-static void ensure_connection(void)
+static GDBusConnection *connection[1] = {NULL};
+static GDBusProxy *proxy[1] = {NULL};
+static char *portal_path[1] = {"org.freedesktop.portal.ScreenCast"};
+
+static void ensure_proxy(enum portal_type type)
 {
 	g_autoptr(GError) error = NULL;
-	if (!connection) {
-		connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+	if (!connection[type]) {
+		connection[type] =
+			g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
 
 		if (error) {
 			blog(LOG_WARNING,
@@ -37,20 +40,13 @@ static void ensure_connection(void)
 			return;
 		}
 	}
-}
 
-static void ensure_proxy(void)
-{
-	g_autoptr(GError) error = NULL;
-
-	ensure_connection();
-
-	if (!proxy) {
-		proxy = g_dbus_proxy_new_sync(
-			connection, G_DBUS_PROXY_FLAGS_NONE, NULL,
+	if (!proxy[type]) {
+		proxy[type] = g_dbus_proxy_new_sync(
+			connection[type], G_DBUS_PROXY_FLAGS_NONE, NULL,
 			"org.freedesktop.portal.Desktop",
-			"/org/freedesktop/portal/desktop",
-			"org.freedesktop.portal.ScreenCast", NULL, &error);
+			"/org/freedesktop/portal/desktop", portal_path[type],
+			NULL, &error);
 
 		if (error) {
 			blog(LOG_WARNING,
@@ -61,14 +57,14 @@ static void ensure_proxy(void)
 	}
 }
 
-GDBusConnection *portal_get_dbus_connection(void)
+GDBusConnection *portal_get_dbus_connection(enum portal_type type)
 {
-	ensure_connection();
-	return connection;
+	ensure_proxy(type);
+	return connection[type];
 }
 
-GDBusProxy *portal_get_dbus_proxy(void)
+GDBusProxy *portal_get_dbus_proxy(enum portal_type type)
 {
-	ensure_proxy();
-	return proxy;
+	ensure_proxy(type);
+	return proxy[type];
 }

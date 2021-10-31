@@ -26,10 +26,11 @@
 
 typedef struct _dbus_request dbus_request;
 
-void new_session_path(char **out_path, char **out_token);
+void new_session_path(enum portal_type type, char **out_path, char **out_token);
 dbus_request *dbus_request_new(GCancellable *cancellable,
-			       GDBusSignalCallback callback, void *user_data);
+			       GDBusSignalCallback callback,
+			       enum portal_type type, void *user_data);
 void dbus_request_free(dbus_request *request);
 const char *dbus_request_get_token(dbus_request *request);
 
-const char *dbus_get_sender_name(void);
+const char *dbus_get_sender_name(enum portal_type type);

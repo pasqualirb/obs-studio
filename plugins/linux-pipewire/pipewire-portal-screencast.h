@@ -35,6 +35,8 @@ enum obs_pw_capture_type {
 struct obs_pipewire_portal_screencast_data {
 	GCancellable *cancellable;
 
+	enum portal_type type;
+
 	char *sender_name;
 	char *session_handle;
 

@@ -39,7 +39,7 @@ static const char *capture_type_to_string(enum obs_pw_capture_type capture_type)
 
 static GDBusProxy *portal_get_screencast_proxy()
 {
-	return portal_get_dbus_proxy();
+	return portal_get_dbus_proxy(PORTAL_SCREENCAST);
 }
 
 /* ------------------------------------------------- */
@@ -136,7 +136,7 @@ static void start(struct obs_pipewire_portal_screencast_data *portal_handle)
 
 	request = dbus_request_new(portal_handle->cancellable,
 				   on_start_response_received_cb,
-				   portal_handle);
+				   portal_handle->type, portal_handle);
 
 	request_token = dbus_request_get_token(request);
 
@@ -209,7 +209,7 @@ select_source(struct obs_pipewire_portal_screencast_data *portal_handle)
 
 	request = dbus_request_new(portal_handle->cancellable,
 				   on_select_source_response_received_cb,
-				   portal_handle);
+				   portal_handle->type, portal_handle);
 
 	request_token = dbus_request_get_token(request);
 
@@ -303,11 +303,11 @@ create_session(struct obs_pipewire_portal_screencast_data *portal_handle)
 	const char *request_token;
 	char *session_token;
 
-	new_session_path(NULL, &session_token);
+	new_session_path(portal_handle->type, NULL, &session_token);
 
 	request = dbus_request_new(portal_handle->cancellable,
 				   on_create_session_response_received_cb,
-				   portal_handle);
+				   portal_handle->type, portal_handle);
 
 	request_token = dbus_request_get_token(request);
 
@@ -394,7 +394,8 @@ gboolean init_xdg_portal_screencast(
 	//portal_handle->request_path_template = REQUEST_PATH;
 	//portal_handle->session_path_template = SESSION_PATH;
 	portal_handle->cancellable = g_cancellable_new();
-	connection = portal_get_dbus_connection();
+	portal_handle->type = PORTAL_SCREENCAST;
+	connection = portal_get_dbus_connection(PORTAL_SCREENCAST);
 	if (!connection)
 		return FALSE;
 	proxy = portal_get_screencast_proxy();
@@ -404,7 +405,7 @@ gboolean init_xdg_portal_screencast(
 	update_available_cursor_modes(portal_handle);
 
 	blog(LOG_INFO, "PipeWire initialized (sender name: %s)",
-	     dbus_get_sender_name());
+	     dbus_get_sender_name(portal_handle->type));
 
 	create_session(portal_handle);
 

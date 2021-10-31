@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <gio/gio.h>
 
+enum portal_type { PORTAL_SCREENCAST = 0 };
 
-GDBusConnection *portal_get_dbus_connection(void);
-GDBusProxy *portal_get_dbus_proxy(void);
+GDBusConnection *portal_get_dbus_connection(enum portal_type);
+GDBusProxy *portal_get_dbus_proxy(enum portal_type);

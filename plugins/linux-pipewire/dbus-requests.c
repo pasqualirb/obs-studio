@@ -33,12 +33,13 @@ struct _dbus_request {
 	guint signal_id;
 	gulong cancelled_id;
 	GDBusSignalCallback callback;
+	enum portal_type type;
 	void *user_data;
 };
 
 static char *sender_name_ = NULL;
 
-void new_session_path(char **out_path, char **out_token)
+void new_session_path(enum portal_type type, char **out_path, char **out_token)
 {
 	static uint32_t session_token_count = 0;
 
@@ -54,13 +55,13 @@ void new_session_path(char **out_path, char **out_token)
 	if (out_path) {
 		struct dstr str;
 		dstr_init(&str);
-		dstr_printf(&str, SESSION_PATH, dbus_get_sender_name(),
+		dstr_printf(&str, SESSION_PATH, dbus_get_sender_name(type),
 			    session_token_count);
 		*out_path = str.array;
 	}
 }
 
-static void new_request_path(char **out_path, char **out_token)
+static void new_request_path(enum portal_type type, char **out_path, char **out_token)
 {
 	static uint32_t request_token_count = 0;
 
@@ -76,7 +77,7 @@ static void new_request_path(char **out_path, char **out_token)
 	if (out_path) {
 		struct dstr str;
 		dstr_init(&str);
-		dstr_printf(&str, REQUEST_PATH, dbus_get_sender_name(),
+		dstr_printf(&str, REQUEST_PATH, dbus_get_sender_name(type),
 			    request_token_count);
 		*out_path = str.array;
 	}
@@ -90,7 +91,7 @@ static void on_cancelled_cb(GCancellable *cancellable, void *data)
 
 	blog(LOG_INFO, "[pipewire] screencast session cancelled");
 
-	g_dbus_connection_call(portal_get_dbus_connection(),
+	g_dbus_connection_call(portal_get_dbus_connection(request->type),
 			       "org.freedesktop.portal.Desktop",
 			       request->request_path,
 			       "org.freedesktop.portal.Request", "Close", NULL,
@@ -114,13 +115,13 @@ static void on_response_received_cb(GDBusConnection *connection,
 	dbus_request_free(request);
 }
 
-const char *dbus_get_sender_name(void)
+const char *dbus_get_sender_name(enum portal_type type)
 {
 	if (sender_name_ == NULL) {
 		GDBusConnection *connection;
 		char *aux;
 
-		connection = portal_get_dbus_connection();
+		connection = portal_get_dbus_connection(type);
 		sender_name_ = bstrdup(
 			g_dbus_connection_get_unique_name(connection) + 1);
 
@@ -138,7 +139,7 @@ void dbus_request_free(dbus_request *request)
 
 	if (request->signal_id)
 		g_dbus_connection_signal_unsubscribe(
-			portal_get_dbus_connection(), request->signal_id);
+			portal_get_dbus_connection(request->type), request->signal_id);
 
 	if (request->cancelled_id > 0)
 		g_signal_handler_disconnect(request->cancellable,
@@ -151,14 +152,16 @@ void dbus_request_free(dbus_request *request)
 }
 
 dbus_request *dbus_request_new(GCancellable *cancellable,
-			       GDBusSignalCallback callback, void *user_data)
+			       GDBusSignalCallback callback,
+			       enum portal_type type, void *user_data)
 {
 	dbus_request *request;
 
 	request = bzalloc(sizeof(dbus_request));
 	request->user_data = user_data;
 	request->callback = callback;
-	new_request_path(&request->request_path, &request->request_token);
+	request->type = type;
+	new_request_path(request->type, &request->request_path, &request->request_token);
 
 	if (cancellable) {
 		request->cancellable = g_object_ref(cancellable);
@@ -167,7 +170,8 @@ dbus_request *dbus_request_new(GCancellable *cancellable,
 					 G_CALLBACK(on_cancelled_cb), request);
 	}
 	request->signal_id = g_dbus_connection_signal_subscribe(
-		portal_get_dbus_connection(), "org.freedesktop.portal.Desktop",
+		portal_get_dbus_connection(request->type),
+		"org.freedesktop.portal.Desktop",
 		"org.freedesktop.portal.Request", "Response",
 		request->request_path, NULL, G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE,
 		on_response_received_cb, request, NULL);

@@ -32,6 +32,8 @@
 struct obs_pipewire_portal_data {
 	GCancellable *cancellable;
 
+	enum portal_type type;
+
 	char *sender_name;
 	char *session_handle;
 

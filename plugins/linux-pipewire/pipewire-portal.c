@@ -40,7 +40,7 @@ void destroy_session(struct obs_pipewire_portal_data *portal_handle)
 		return;
 
 	if (portal_handle->session_handle) {
-		g_dbus_connection_call(portal_get_dbus_connection(),
+		g_dbus_connection_call(portal_get_dbus_connection(portal_handle->type),
 				       "org.freedesktop.portal.Desktop",
 				       portal_handle->session_handle,
 				       "org.freedesktop.portal.Session",
@@ -99,7 +99,7 @@ void open_pipewire_remote(struct obs_pipewire_portal_data *portal_handle)
 	g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
 
 	g_dbus_proxy_call_with_unix_fd_list(
-		portal_get_dbus_proxy(), "OpenPipeWireRemote",
+		portal_get_dbus_proxy(portal_handle->type), "OpenPipeWireRemote",
 		g_variant_new("(oa{sv})", portal_handle->session_handle,
 			      &builder),
 		G_DBUS_CALL_FLAGS_NONE, -1, NULL, portal_handle->cancellable,
