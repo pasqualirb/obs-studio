@@ -22,7 +22,7 @@
 #include "pipewire.h"
 
 static GDBusConnection *connection = NULL;
-static GDBusProxy *screencast_proxy = NULL;
+static GDBusProxy *proxy = NULL;
 
 static void ensure_connection(void)
 {
@@ -39,14 +39,14 @@ static void ensure_connection(void)
 	}
 }
 
-static void ensure_screencast_proxy(void)
+static void ensure_proxy(void)
 {
 	g_autoptr(GError) error = NULL;
 
 	ensure_connection();
 
-	if (!screencast_proxy) {
-		screencast_proxy = g_dbus_proxy_new_sync(
+	if (!proxy) {
+		proxy = g_dbus_proxy_new_sync(
 			connection, G_DBUS_PROXY_FLAGS_NONE, NULL,
 			"org.freedesktop.portal.Desktop",
 			"/org/freedesktop/portal/desktop",
@@ -61,33 +61,14 @@ static void ensure_screencast_proxy(void)
 	}
 }
 
-uint32_t portal_get_available_capture_types(void)
-{
-	g_autoptr(GVariant) cached_source_types = NULL;
-	uint32_t available_source_types;
-
-	ensure_screencast_proxy();
-
-	if (!screencast_proxy)
-		return 0;
-
-	cached_source_types = g_dbus_proxy_get_cached_property(
-		screencast_proxy, "AvailableSourceTypes");
-	available_source_types =
-		cached_source_types ? g_variant_get_uint32(cached_source_types)
-				    : 0;
-
-	return available_source_types;
-}
-
 GDBusConnection *portal_get_dbus_connection(void)
 {
 	ensure_connection();
 	return connection;
 }
 
-GDBusProxy *portal_get_screencast_proxy(void)
+GDBusProxy *portal_get_dbus_proxy(void)
 {
-	ensure_screencast_proxy();
-	return screencast_proxy;
+	ensure_proxy();
+	return proxy;
 }

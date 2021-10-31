@@ -38,6 +38,28 @@ struct _dbus_request {
 
 static char *sender_name_ = NULL;
 
+void new_session_path(char **out_path, char **out_token)
+{
+	static uint32_t session_token_count = 0;
+
+	session_token_count++;
+
+	if (out_token) {
+		struct dstr str;
+		dstr_init(&str);
+		dstr_printf(&str, "obs%u", session_token_count);
+		*out_token = str.array;
+	}
+
+	if (out_path) {
+		struct dstr str;
+		dstr_init(&str);
+		dstr_printf(&str, SESSION_PATH, dbus_get_sender_name(),
+			    session_token_count);
+		*out_path = str.array;
+	}
+}
+
 static void new_request_path(char **out_path, char **out_token)
 {
 	static uint32_t request_token_count = 0;

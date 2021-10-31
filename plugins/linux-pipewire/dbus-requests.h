@@ -20,10 +20,13 @@
 
 #pragma once
 
+#include "portal.h"
+
 #include <gio/gio.h>
 
 typedef struct _dbus_request dbus_request;
 
+void new_session_path(char **out_path, char **out_token);
 dbus_request *dbus_request_new(GCancellable *cancellable,
 			       GDBusSignalCallback callback, void *user_data);
 void dbus_request_free(dbus_request *request);
