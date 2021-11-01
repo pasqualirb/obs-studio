@@ -20,6 +20,7 @@
 
 #include "pipewire-capture.h"
 #include "pipewire-input.h"
+#include "pipewire-common.h"
 #include "pipewire-portal-screencast.h"
 #include "portal.h"
 
@@ -28,6 +29,7 @@
 struct obs_pipewire_capture {
 	enum obs_pw_capture_type capture_type;
 	struct obs_pipewire_portal_screencast_data portal_handle;
+	struct obs_pw_core pw_core;
 	obs_pipewire_data *obs_pw;
 	bool show_cursor;
 	obs_source_t *obs_source;
@@ -38,11 +40,14 @@ static void play_pipewire_stream(void *data)
 	struct obs_pipewire_capture *pw_capture =
 		(struct obs_pipewire_capture *)data;
 
+	if (!obs_pw_create_context_simple(
+		    &pw_capture->pw_core,
+		    pw_capture->portal_handle.pipewire_fd)) {
+	}
+
 	pw_capture->obs_pw = obs_pipewire_new_for_node(
-		pw_capture->portal_handle.pipewire_fd,
-		pw_capture->portal_handle.pipewire_node,
-		IMPORT_API_TEXTURE,
-		pw_capture->obs_source);
+		pw_capture->portal_handle.pipewire_node, &pw_capture->pw_core,
+		IMPORT_API_TEXTURE, pw_capture->obs_source);
 	obs_pipewire_set_show_cursor(pw_capture->obs_pw,
 				     pw_capture->show_cursor);
 }
@@ -76,6 +81,8 @@ static bool reload_session_cb(obs_properties_t *properties,
 		(struct obs_pipewire_capture *)data;
 
 	close_pipewire_capture(pw_capture);
+	obs_pipewire_destroy(pw_capture->obs_pw);
+	obs_pw_destroy_context_simple(&pw_capture->pw_core);
 	init_pipewire_capture(pw_capture);
 
 	return false;
@@ -84,6 +91,8 @@ static bool reload_session_cb(obs_properties_t *properties,
 static void destroy_pipewire_capture(struct obs_pipewire_capture *pw_capture)
 {
 	close_xdg_portal_screencast(&pw_capture->portal_handle);
+	obs_pipewire_destroy(pw_capture->obs_pw);
+	obs_pw_destroy_context_simple(&pw_capture->pw_core);
 	bfree(pw_capture);
 }
 

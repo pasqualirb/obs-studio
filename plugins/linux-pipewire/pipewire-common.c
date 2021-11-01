@@ -22,6 +22,7 @@
 #include <pipewire/pipewire.h>
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "pipewire-common.h"
 
@@ -334,6 +335,41 @@ bool obs_pw_destroy_context(struct obs_pw_core *pw_core)
 	pw_context_destroy(pw_core->context);
 	pw_core->context = NULL;
 	return true;
+}
+
+/**********************************************************************/
+
+bool obs_pw_create_context_simple(struct obs_pw_core *pw_core, int pipewire_fd)
+{
+	if (!obs_pw_create_loop(pw_core, "PipeWire thread loop")) {
+		blog(LOG_WARNING, "[pipewire]: failed to create loop");
+		return false;
+	}
+	if (!obs_pw_start_loop(pw_core)) {
+		blog(LOG_WARNING, "[pipewire]: failed to start loop");
+		obs_pw_destroy_loop(pw_core);
+		return false;
+	}
+	if (!obs_pw_create_context(pw_core, pipewire_fd, NULL, NULL)) {
+		blog(LOG_WARNING, "[pipewire]: failed to create context");
+		obs_pw_stop_loop(pw_core);
+		obs_pw_destroy_loop(pw_core);
+		return false;
+	}
+	pw_core->pipewire_fd = pipewire_fd;
+	return true;
+}
+
+void obs_pw_destroy_context_simple(struct obs_pw_core *pw_core)
+{
+	uint32_t pipewire_fd = pw_core->pipewire_fd;
+	obs_pw_stop_loop(pw_core);
+	obs_pw_destroy_context(pw_core);
+	obs_pw_destroy_loop(pw_core);
+
+	if (pipewire_fd > 0) {
+		close(pipewire_fd);
+	}
 }
 
 /**********************************************************************/

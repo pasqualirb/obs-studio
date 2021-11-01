@@ -32,6 +32,8 @@ struct obs_pw_core {
 
 	struct pw_core *core;
 	struct spa_hook core_listener;
+
+	uint32_t pipewire_fd;
 };
 
 enum obs_pw_stream_type {
@@ -99,6 +101,11 @@ bool obs_pw_create_context(struct obs_pw_core *pw_core, int pipewire_fd,
 			   const struct pw_core_events *core_events,
 			   void *data);
 bool obs_pw_destroy_context(struct obs_pw_core *pw_core);
+
+/**********************************************************************/
+
+bool obs_pw_create_context_simple(struct obs_pw_core *pw_core, int pipewire_fd);
+void obs_pw_destroy_context_simple(struct obs_pw_core *pw_core);
 
 /**********************************************************************/
 

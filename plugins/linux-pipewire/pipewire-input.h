@@ -22,12 +22,14 @@
 
 #include <obs-module.h>
 #include <pipewire/pipewire.h>
+#include "pipewire-common.h"
 
 typedef struct _obs_pipewire_data obs_pipewire_data;
 
 enum import_type { IMPORT_API_TEXTURE, IMPORT_API_MEDIA };
 
-obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node,
+obs_pipewire_data *obs_pipewire_new_for_node(uint32_t node,
+					     struct obs_pw_core *pw_core,
 					     enum import_type type,
 					     obs_source_t *source);
 
