@@ -22,9 +22,10 @@
 
 #include <obs/util/base.h>
 
-static GDBusConnection *connection[1] = {NULL};
-static GDBusProxy *proxy[1] = {NULL};
-static char *portal_path[1] = {"org.freedesktop.portal.ScreenCast"};
+static GDBusConnection *connection[2] = {NULL, NULL};
+static GDBusProxy *proxy[2] = {NULL, NULL};
+static char *portal_path[2] = {"org.freedesktop.portal.ScreenCast",
+			       "org.freedesktop.portal.Camera"};
 
 static void ensure_proxy(enum portal_type type)
 {

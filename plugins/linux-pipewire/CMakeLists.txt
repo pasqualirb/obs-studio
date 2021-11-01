@@ -38,6 +38,7 @@ set(linux-pipewire_SOURCES
 	pipewire-input.c
 	pipewire-capture.c
 	pipewire-portal-screencast.c
+	pipewire-portal-camera.c
 	pipewire-portal.c
 	portal.c
 	dbus-requests.c
@@ -48,6 +49,7 @@ set(linux-pipewire_HEADERS
 	pipewire-input.h
 	pipewire-capture.h
 	pipewire-portal-screencast.h
+	pipewire-portal-camera.h
 	pipewire-portal.h
 	portal.h
 	dbus-requests.h
