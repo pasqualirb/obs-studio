@@ -234,6 +234,12 @@ bool obs_pw_destroy_loop(struct obs_pw_core *pw_core)
 	return true;
 }
 
+void obs_pw_set_active_stream(struct obs_pw_stream *pw_stream, bool active)
+{
+	if (pw_stream->stream)
+		pw_stream_set_active(pw_stream->stream, active);
+}
+
 bool obs_pw_create_stream(struct obs_pw_stream *pw_stream, char *name,
 			  struct pw_properties *pw_props,
 			  uint32_t target_node_id, enum pw_stream_flags flags,

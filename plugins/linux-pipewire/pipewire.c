@@ -744,14 +744,12 @@ void obs_pipewire_get_defaults(obs_data_t *settings)
 
 void obs_pipewire_show(obs_pipewire_data *obs_pw)
 {
-	if (obs_pw->pw_stream.stream)
-		pw_stream_set_active(obs_pw->pw_stream.stream, true);
+	obs_pw_set_active_stream(&obs_pw->pw_stream, true);
 }
 
 void obs_pipewire_hide(obs_pipewire_data *obs_pw)
 {
-	if (obs_pw->pw_stream.stream)
-		pw_stream_set_active(obs_pw->pw_stream.stream, false);
+	obs_pw_set_active_stream(&obs_pw->pw_stream, false);
 }
 
 uint32_t obs_pipewire_get_width(obs_pipewire_data *obs_pw)

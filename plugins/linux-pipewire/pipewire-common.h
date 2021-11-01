@@ -87,6 +87,7 @@ bool obs_pw_start_loop(struct obs_pw_core *pw_core);
 bool obs_pw_stop_loop(struct obs_pw_core *pw_core);
 bool obs_pw_create_loop(struct obs_pw_core *pw_core, char *name);
 bool obs_pw_destroy_loop(struct obs_pw_core *pw_core);
+void obs_pw_set_active_stream(struct obs_pw_stream *pw_stream, bool active);
 bool obs_pw_create_stream(struct obs_pw_stream *pw_stream, char *name,
 			  struct pw_properties *pw_props,
 			  uint32_t target_node_id, enum pw_stream_flags flags,
