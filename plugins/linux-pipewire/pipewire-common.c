@@ -28,7 +28,8 @@
 /**********************************************************************/
 
 struct spa_pod *build_format(struct spa_pod_builder *b, uint32_t width,
-			     uint32_t height, uint32_t format)
+			     uint32_t height, struct obs_video_info *ovi,
+			     uint32_t format)
 {
 	struct spa_pod_frame f[2];
 
@@ -48,14 +49,35 @@ struct spa_pod *build_format(struct spa_pod_builder *b, uint32_t width,
 	spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_format, 0);
 	spa_pod_builder_id(b, format);
 
-	/* add size and framerate ranges */
-	spa_pod_builder_add(
-		b, SPA_FORMAT_VIDEO_size,
-		SPA_POD_CHOICE_RANGE_Rectangle(&SPA_RECTANGLE(width, height),
-					       &SPA_RECTANGLE(640, 480),
-					       &SPA_RECTANGLE(width, height)),
-		SPA_FORMAT_VIDEO_framerate,
-		SPA_POD_Fraction(&SPA_FRACTION(0, 1)), 0);
+	/* add size ranges */
+	if (width != 0 && height != 0) {
+		spa_pod_builder_add(b, SPA_FORMAT_VIDEO_size,
+				    SPA_POD_CHOICE_RANGE_Rectangle(
+					    &SPA_RECTANGLE(width, height),
+					    &SPA_RECTANGLE(640, 480),
+					    &SPA_RECTANGLE(width, height)),
+				    0);
+	} else {
+		spa_pod_builder_add(
+			b, SPA_FORMAT_VIDEO_size,
+			SPA_POD_CHOICE_RANGE_Rectangle(
+				&SPA_RECTANGLE(320, 240), // Arbitrary
+				&SPA_RECTANGLE(1, 1),
+				&SPA_RECTANGLE(8192, 4320)),
+			0);
+	}
+	/* add framerate ranges */
+	if (ovi) {
+		spa_pod_builder_add(
+			b, SPA_FORMAT_VIDEO_framerate,
+			SPA_POD_CHOICE_RANGE_Fraction(
+				&SPA_FRACTION(ovi->fps_num, ovi->fps_den),
+				&SPA_FRACTION(0, 1), &SPA_FRACTION(360, 1)),
+			0);
+	} else {
+		spa_pod_builder_add(b, SPA_FORMAT_VIDEO_framerate,
+				    SPA_POD_Fraction(&SPA_FRACTION(0, 1)), 0);
+	}
 	return spa_pod_builder_pop(b, &f[0]);
 }
 

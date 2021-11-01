@@ -193,8 +193,8 @@ static bool virtualcam_start(void *data)
 
 	int width = obs_output_get_width(obs_pwvc->output);
 	int height = obs_output_get_height(obs_pwvc->output);
-	params[0] = build_format(&b, width, height, SPA_VIDEO_FORMAT_RGBA);
-	params[1] = build_format(&b, width, height, SPA_VIDEO_FORMAT_YUY2);
+	params[0] = build_format(&b, width, height, NULL, SPA_VIDEO_FORMAT_RGBA);
+	params[1] = build_format(&b, width, height, NULL, SPA_VIDEO_FORMAT_YUY2);
 	obs_pwvc->pw_stream.type = OBS_PW_STREAM_TYPE_OUTPUT;
 
 	if (!obs_pw_create_stream(

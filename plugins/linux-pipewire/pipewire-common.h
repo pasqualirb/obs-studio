@@ -68,7 +68,8 @@ typedef struct _obs_pipewire_data obs_pipewire_data;
 /**********************************************************************/
 
 struct spa_pod *build_format(struct spa_pod_builder *b, uint32_t width,
-			     uint32_t height, uint32_t format);
+			     uint32_t height, struct obs_video_info *ovi,
+			     uint32_t format);
 
 bool get_obs_formatinfo_from_pw_format(
 	struct obs_pipewire_formatinfo *formatinfo,
