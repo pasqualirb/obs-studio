@@ -230,7 +230,9 @@ bool obs_pw_create_loop(struct obs_pw_core *pw_core, char *name)
 
 bool obs_pw_destroy_loop(struct obs_pw_core *pw_core)
 {
-	pw_thread_loop_destroy(pw_core->thread_loop);
+	if (pw_core->thread_loop) {
+		pw_thread_loop_destroy(pw_core->thread_loop);
+	}
 	pw_core->thread_loop = NULL;
 	return true;
 }
@@ -330,9 +332,13 @@ error:
 
 bool obs_pw_destroy_context(struct obs_pw_core *pw_core)
 {
-	pw_core_disconnect(pw_core->core);
+	if (pw_core->core) {
+		pw_core_disconnect(pw_core->core);
+	}
 	pw_core->core = NULL;
-	pw_context_destroy(pw_core->context);
+	if (pw_core->context) {
+		pw_context_destroy(pw_core->context);
+	}
 	pw_core->context = NULL;
 	return true;
 }
