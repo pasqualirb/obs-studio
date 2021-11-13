@@ -19,6 +19,7 @@
  */
 
 #include "pipewire.h"
+#include "pipewire-common.h"
 
 #include <libdrm/drm_fourcc.h>
 #include <fcntl.h>
@@ -55,15 +56,10 @@ struct _obs_pipewire_data {
 
 	gs_texture_t *texture;
 
-	struct pw_thread_loop *thread_loop;
-	struct pw_context *context;
+	struct obs_pw_core pw_core;
+	struct obs_pw_stream pw_stream;
 
-	struct pw_core *core;
-	struct spa_hook core_listener;
-
-	struct pw_stream *stream;
 	struct spa_source *reneg;
-	struct spa_hook stream_listener;
 	struct spa_video_info format;
 
 	struct {
@@ -107,16 +103,11 @@ static bool has_pw_version(int major, int minor, int micro)
 
 static void teardown_pipewire(obs_pipewire_data *obs_pw)
 {
-	if (obs_pw->thread_loop) {
-		pw_thread_loop_wait(obs_pw->thread_loop);
-		pw_thread_loop_stop(obs_pw->thread_loop);
-	}
+	obs_pw_stop_loop(&obs_pw->pw_core);
 
-	if (obs_pw->stream)
-		pw_stream_disconnect(obs_pw->stream);
-	g_clear_pointer(&obs_pw->stream, pw_stream_destroy);
-	g_clear_pointer(&obs_pw->context, pw_context_destroy);
-	g_clear_pointer(&obs_pw->thread_loop, pw_thread_loop_destroy);
+	obs_pw_destroy_stream(&obs_pw->pw_stream);
+	obs_pw_destroy_context(&obs_pw->pw_core);
+	obs_pw_destroy_loop(&obs_pw->pw_core);
 
 	if (obs_pw->pipewire_fd > 0) {
 		close(obs_pw->pipewire_fd);
@@ -367,15 +358,15 @@ static void renegotiate_format(void *data, uint64_t expirations)
 
 	blog(LOG_DEBUG, "[pipewire] Renegotiating stream ...");
 
-	pw_thread_loop_lock(obs_pw->thread_loop);
+	obs_pw_lock_loop(&obs_pw->pw_core);
 
 	uint8_t params_buffer[2048];
 	struct spa_pod_builder pod_builder =
 		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
 	uint32_t n_params = build_format_params(obs_pw, &pod_builder, &params);
 
-	pw_stream_update_params(obs_pw->stream, params, n_params);
-	pw_thread_loop_unlock(obs_pw->thread_loop);
+	pw_stream_update_params(obs_pw->pw_stream.stream, params, n_params);
+	obs_pw_unlock_loop(&obs_pw->pw_core);
 	bfree(params);
 }
 /* ------------------------------------------------- */
@@ -395,11 +386,11 @@ static void on_process_cb(void *user_data)
 	b = NULL;
 	while (true) {
 		struct pw_buffer *aux =
-			pw_stream_dequeue_buffer(obs_pw->stream);
+			pw_stream_dequeue_buffer(obs_pw->pw_stream.stream);
 		if (!aux)
 			break;
 		if (b)
-			pw_stream_queue_buffer(obs_pw->stream, b);
+			pw_stream_queue_buffer(obs_pw->pw_stream.stream, b);
 		b = aux;
 	}
 
@@ -461,7 +452,7 @@ static void on_process_cb(void *user_data)
 			strip_modifier(obs_pw, obs_pw->format.info.raw.format,
 				       obs_pw->format.info.raw.modifier);
 			pw_loop_signal_event(
-				pw_thread_loop_get_loop(obs_pw->thread_loop),
+				pw_thread_loop_get_loop(obs_pw->pw_core.thread_loop),
 				obs_pw->reneg);
 		}
 	} else {
@@ -546,7 +537,7 @@ read_metadata:
 		obs_pw->cursor.y = cursor->position.y;
 	}
 
-	pw_stream_queue_buffer(obs_pw->stream, b);
+	pw_stream_queue_buffer(obs_pw->pw_stream.stream, b);
 
 	obs_leave_graphics();
 }
@@ -613,7 +604,7 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 		SPA_PARAM_BUFFERS_dataType,
 		SPA_POD_Int((1 << SPA_DATA_MemPtr) | (1 << SPA_DATA_DmaBuf)));
 
-	pw_stream_update_params(obs_pw->stream, params, 3);
+	pw_stream_update_params(obs_pw->pw_stream.stream, params, 3);
 
 	obs_pw->negotiated = true;
 }
@@ -627,7 +618,7 @@ static void on_state_changed_cb(void *user_data, enum pw_stream_state old,
 	obs_pipewire_data *obs_pw = user_data;
 
 	blog(LOG_DEBUG, "[pipewire] stream %p state: \"%s\" (error: %s)",
-	     obs_pw->stream, pw_stream_state_as_string(state),
+	     obs_pw->pw_stream.stream, pw_stream_state_as_string(state),
 	     error ? error : "none");
 }
 
@@ -648,7 +639,7 @@ static void on_core_error_cb(void *user_data, uint32_t id, int seq, int res,
 	blog(LOG_ERROR, "[pipewire] Error id:%u seq:%d res:%d (%s): %s", id,
 	     seq, res, g_strerror(res), message);
 
-	pw_thread_loop_signal(obs_pw->thread_loop, FALSE);
+	pw_thread_loop_signal(obs_pw->pw_core.thread_loop, FALSE);
 }
 
 static void on_core_done_cb(void *user_data, uint32_t id, int seq)
@@ -658,7 +649,7 @@ static void on_core_done_cb(void *user_data, uint32_t id, int seq)
 	obs_pipewire_data *obs_pw = user_data;
 
 	if (id == PW_ID_CORE)
-		pw_thread_loop_signal(obs_pw->thread_loop, FALSE);
+		pw_thread_loop_signal(obs_pw->pw_core.thread_loop, FALSE);
 }
 
 static const struct pw_core_events core_events = {
@@ -667,8 +658,9 @@ static const struct pw_core_events core_events = {
 	.error = on_core_error_cb,
 };
 
-static void connect_stream(obs_pipewire_data *obs_pw, uint32_t node)
+obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
 {
+	obs_pipewire_data *obs_pw;
 	struct spa_pod_builder pod_builder;
 	const struct spa_pod **params = NULL;
 	uint32_t n_params;
@@ -679,76 +671,54 @@ static void connect_stream(obs_pipewire_data *obs_pw, uint32_t node)
 	pod_builder =
 		SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
 
+	obs_pw = bzalloc(sizeof(obs_pipewire_data));
+	obs_pw->pipewire_fd = fd;
+	obs_pw->pw_stream.pw_core = &obs_pw->pw_core;
+	obs_pw->n_formats = create_modifier_info(&obs_pw->modifier_info);
+
+	if (!obs_pw_create_loop(&obs_pw->pw_core, "PipeWire thread loop")) {
+		blog(LOG_WARNING, "[pipewire]: failed to create loop");
+		goto fail;
+	}
+	if (!obs_pw_start_loop(&obs_pw->pw_core)) {
+		blog(LOG_WARNING, "[pipewire]: failed to start loop");
+		goto fail;
+	}
+	if (!obs_pw_create_context(&obs_pw->pw_core, obs_pw->pipewire_fd,
+				   &core_events, obs_pw)) {
+		blog(LOG_WARNING, "[pipewire]: failed to create context");
+		goto fail;
+	}
+
 	obs_get_video_info(&ovi);
 
 	obs_pw->video_info = ovi;
 
 	n_params = build_format_params(obs_pw, &pod_builder, &params);
 
-	pw_stream_connect(obs_pw->stream, PW_DIRECTION_INPUT, node,
-			  PW_STREAM_FLAG_AUTOCONNECT |
-				  PW_STREAM_FLAG_MAP_BUFFERS,
-			  params, n_params);
+	obs_pw->pw_stream.type = OBS_PW_STREAM_TYPE_INPUT;
+	if (!obs_pw_create_stream(
+		    &obs_pw->pw_stream, "OBS Studio",
+		    pw_properties_new(PW_KEY_MEDIA_TYPE, "Video",
+				      PW_KEY_MEDIA_CATEGORY, "Capture",
+				      PW_KEY_MEDIA_ROLE, "Screen", NULL),
+		    node,
+		    PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS,
+		    &stream_events, params, n_params, obs_pw)) {
+		blog(LOG_WARNING, "[pipewire]: failed to create stream");
+		goto fail;
+	}
+	blog(LOG_INFO, "[pipewire] created stream %p",
+	     obs_pw->pw_stream.stream);
+
 	bfree(params);
-}
-
-obs_pipewire_data *obs_pipewire_new_for_node(int fd, uint32_t node)
-{
-	obs_pipewire_data *obs_pw;
-
-	obs_pw = bzalloc(sizeof(obs_pipewire_data));
-	obs_pw->pipewire_fd = fd;
-	obs_pw->n_formats = create_modifier_info(&obs_pw->modifier_info);
-	obs_pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
-	obs_pw->context = pw_context_new(
-		pw_thread_loop_get_loop(obs_pw->thread_loop), NULL, 0);
-
-	if (pw_thread_loop_start(obs_pw->thread_loop) < 0) {
-		blog(LOG_WARNING, "Error starting threaded mainloop");
-		goto fail;
-	}
-
-	pw_thread_loop_lock(obs_pw->thread_loop);
-
-	/* Core */
-	obs_pw->core = pw_context_connect_fd(
-		obs_pw->context, fcntl(obs_pw->pipewire_fd, F_DUPFD_CLOEXEC, 5),
-		NULL, 0);
-	if (!obs_pw->core) {
-		blog(LOG_WARNING, "Error creating PipeWire core: %m");
-		pw_thread_loop_unlock(obs_pw->thread_loop);
-		goto fail;
-	}
-
-	pw_core_add_listener(obs_pw->core, &obs_pw->core_listener, &core_events,
-			     obs_pw);
-
-	/* Signal to renegotiate */
-	obs_pw->reneg =
-		pw_loop_add_event(pw_thread_loop_get_loop(obs_pw->thread_loop),
-				  renegotiate_format, obs_pw);
-	blog(LOG_INFO, "[pipewire] registered event %p", obs_pw->reneg);
-
-	/* Stream */
-	obs_pw->stream = pw_stream_new(
-		obs_pw->core, "OBS Studio",
-		pw_properties_new(PW_KEY_MEDIA_TYPE, "Video",
-				  PW_KEY_MEDIA_CATEGORY, "Capture",
-				  PW_KEY_MEDIA_ROLE, "Screen", NULL));
-	pw_stream_add_listener(obs_pw->stream, &obs_pw->stream_listener,
-			       &stream_events, obs_pw);
-	blog(LOG_INFO, "[pipewire] created stream %p", obs_pw->stream);
-
-	connect_stream(obs_pw, node);
-
-	blog(LOG_INFO, "[pipewire] playing stream…");
-
-	pw_thread_loop_unlock(obs_pw->thread_loop);
-
 	return obs_pw;
-
 fail:
-	obs_pipewire_destroy(obs_pw);
+	obs_pw_destroy_stream(&obs_pw->pw_stream);
+	obs_pw_stop_loop(&obs_pw->pw_core);
+	obs_pw_destroy_context(&obs_pw->pw_core);
+	obs_pw_destroy_loop(&obs_pw->pw_core);
+	bfree(obs_pw);
 	return NULL;
 }
 
@@ -774,14 +744,14 @@ void obs_pipewire_get_defaults(obs_data_t *settings)
 
 void obs_pipewire_show(obs_pipewire_data *obs_pw)
 {
-	if (obs_pw->stream)
-		pw_stream_set_active(obs_pw->stream, true);
+	if (obs_pw->pw_stream.stream)
+		pw_stream_set_active(obs_pw->pw_stream.stream, true);
 }
 
 void obs_pipewire_hide(obs_pipewire_data *obs_pw)
 {
-	if (obs_pw->stream)
-		pw_stream_set_active(obs_pw->stream, false);
+	if (obs_pw->pw_stream.stream)
+		pw_stream_set_active(obs_pw->pw_stream.stream, false);
 }
 
 uint32_t obs_pipewire_get_width(obs_pipewire_data *obs_pw)
