@@ -209,10 +209,10 @@ static void swap_texture_red_blue(gs_texture_t *texture)
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-static inline struct spa_pod *build_format(struct spa_pod_builder *b,
-					   struct obs_video_info *ovi,
-					   uint32_t format, uint64_t *modifiers,
-					   size_t modifier_count)
+static inline struct spa_pod *
+build_format_with_modifier(struct spa_pod_builder *b,
+			   struct obs_video_info *ovi, uint32_t format,
+			   uint64_t *modifiers, size_t modifier_count)
 {
 	uint32_t i, c;
 	struct spa_pod_frame f[2];
@@ -276,14 +276,14 @@ static uint32_t build_format_params(obs_pipewire_data *obs_pw,
 		if (obs_pw->modifier_info[i].n_modifiers == 0) {
 			continue;
 		}
-		params[n_params++] =
-			build_format(pod_builder, &obs_pw->video_info,
-				     obs_pw->modifier_info[i].spa_format,
-				     obs_pw->modifier_info[i].modifiers,
-				     obs_pw->modifier_info[i].n_modifiers);
+		params[n_params++] = build_format_with_modifier(
+			pod_builder, &obs_pw->video_info,
+			obs_pw->modifier_info[i].spa_format,
+			obs_pw->modifier_info[i].modifiers,
+			obs_pw->modifier_info[i].n_modifiers);
 	}
 	for (int i = 0; i < obs_pw->n_formats; i++) {
-		params[n_params++] = build_format(
+		params[n_params++] = build_format_with_modifier(
 			pod_builder, &obs_pw->video_info,
 			obs_pw->modifier_info[i].spa_format, NULL, 0);
 	}
