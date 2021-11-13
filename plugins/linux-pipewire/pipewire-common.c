@@ -169,6 +169,16 @@ static const struct pw_core_events default_core_events = {
 
 /**********************************************************************/
 
+bool obs_pw_lock_loop(struct obs_pw_core *pw_core) {
+	pw_thread_loop_lock(pw_core->thread_loop);
+	return true;
+}
+
+bool obs_pw_unlock_loop(struct obs_pw_core *pw_core) {
+	pw_thread_loop_unlock(pw_core->thread_loop);
+	return true;
+}
+
 bool obs_pw_start_loop(struct obs_pw_core *pw_core)
 {
 	if (pw_thread_loop_start(pw_core->thread_loop) < 0) {

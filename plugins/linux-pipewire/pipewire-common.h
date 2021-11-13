@@ -80,6 +80,8 @@ void filter_pw_stream_events(
 
 /**********************************************************************/
 
+bool obs_pw_lock_loop(struct obs_pw_core *pw_core);
+bool obs_pw_unlock_loop(struct obs_pw_core *pw_core);
 bool obs_pw_start_loop(struct obs_pw_core *pw_core);
 bool obs_pw_stop_loop(struct obs_pw_core *pw_core);
 bool obs_pw_create_loop(struct obs_pw_core *pw_core, char *name);
