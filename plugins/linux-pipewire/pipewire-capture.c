@@ -24,6 +24,7 @@
 #include "pipewire-portal-screencast.h"
 #include "portal.h"
 
+#include <pipewire/pipewire.h>
 #include <util/dstr.h>
 
 struct obs_pipewire_capture {
@@ -47,6 +48,9 @@ static void play_pipewire_stream(void *data)
 
 	pw_capture->obs_pw = obs_pipewire_new_for_node(
 		pw_capture->portal_handle.pipewire_node, &pw_capture->pw_core,
+		pw_properties_new(PW_KEY_MEDIA_TYPE, "Video",
+			          PW_KEY_MEDIA_CATEGORY, "Capture",
+			          PW_KEY_MEDIA_ROLE, "Screen", NULL),
 		IMPORT_API_TEXTURE, pw_capture->obs_source);
 	obs_pipewire_set_show_cursor(pw_capture->obs_pw,
 				     pw_capture->show_cursor);

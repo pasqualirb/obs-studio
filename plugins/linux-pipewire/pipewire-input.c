@@ -783,6 +783,7 @@ static const struct pw_stream_events stream_events_texture = {
 
 obs_pipewire_data *obs_pipewire_new_for_node(uint32_t node,
 					     struct obs_pw_core *pw_core,
+					     struct pw_properties *pw_property,
 					     enum import_type type,
 					     obs_source_t *source)
 {
@@ -825,10 +826,7 @@ obs_pipewire_data *obs_pipewire_new_for_node(uint32_t node,
 	obs_pw->pw_stream.type = OBS_PW_STREAM_TYPE_INPUT;
 	if (!obs_pw_create_stream(
 		    &obs_pw->pw_stream, "OBS Studio",
-		    pw_properties_new(PW_KEY_MEDIA_TYPE, "Video",
-				      PW_KEY_MEDIA_CATEGORY, "Capture",
-				      PW_KEY_MEDIA_ROLE, "Screen", NULL),
-		    node,
+		    pw_property, node,
 		    PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS,
 		    stream_events, params, n_params, obs_pw)) {
 		blog(LOG_WARNING, "[pipewire]: failed to create stream");

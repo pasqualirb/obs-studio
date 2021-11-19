@@ -30,6 +30,7 @@ enum import_type { IMPORT_API_TEXTURE, IMPORT_API_MEDIA };
 
 obs_pipewire_data *obs_pipewire_new_for_node(uint32_t node,
 					     struct obs_pw_core *pw_core,
+					     struct pw_properties *pw_property,
 					     enum import_type type,
 					     obs_source_t *source);
 
