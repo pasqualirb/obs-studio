@@ -707,8 +707,15 @@ static void on_param_changed_cb(void *user_data, uint32_t id,
 
 	spa_format_video_raw_parse(param, &obs_pw->format.info.raw);
 
-	if (obs_pw->import_type == IMPORT_API_TEXTURE) {
-		buffertypes |= (1 << SPA_DATA_DmaBuf);
+	if (spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) == NULL) {
+		if (obs_pw->import_type == IMPORT_API_MEDIA) {
+			// webcam DMABUFs are mmappable
+			//buffertypes |= (1 << SPA_DATA_DmaBuf);
+		}
+	} else {
+		if (obs_pw->import_type == IMPORT_API_TEXTURE) {
+			buffertypes |= (1 << SPA_DATA_DmaBuf);
+		}
 	}
 
 	blog(LOG_DEBUG, "[pipewire] Negotiated format:");
