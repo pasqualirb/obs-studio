@@ -12,6 +12,8 @@ on:
   release:
     types: [published]
     branches: [master, 'release/**']
+  workflow_dispatch:
+    
 
 env:
   TWITCH_CLIENTID: ${{ secrets.TWITCH_CLIENT_ID }}
